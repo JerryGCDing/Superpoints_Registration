@@ -1,20 +1,27 @@
 general:
-    expt_name: qk_regtr_full
+    expt_name: qk_regtr_full_4_layer
 
 dataset:
-    dataset: 3dmatch
-    root: '../data/indoor'
+    dataset: modelnet
+    root: ../data/modelnet40_ply_hdf5_2048
+    train_categoryfile: datasets/modelnet/modelnet40_half1.txt
+    val_categoryfile: datasets/modelnet/modelnet40_half1.txt
+    test_categoryfile: datasets/modelnet/modelnet40_half2.txt
     augment_noise: 0.005
     perturb_pose: small
-    train_batch_size: 2
-    val_batch_size: 2
+    train_batch_size: 4
+    val_batch_size: 4
     test_batch_size: 1
     overlap_radius: 0.0375  # Distance below which points will be considered to be overlapping
-    alpha: 0.5
-    beta: 1.5
+    partial: [0.7, 0.7]  # Cropping ratio for training. Will be ignored during benchmarking
+    num_points: 1024
+    noise_type: crop
+    rot_mag: 45.0
+    trans_mag: 0.5
+    grid_size: 0.002
 
 train_options:
-    niter: -100  # 400 epochs
+    niter: -400  # 400 epochs
 
 solver:
     optimizer: AdamW
@@ -25,7 +32,7 @@ solver:
     scheduler_param: [127800, 0.5]  # Decay by 0.5 every 100 epochs
 
 
-# Use the same processing or backbone as Predator
+# Use a shallower backbone to maintain resolution
 pointformer_options:
     in_channels: 3
     stride: [ 2, 2, 2, 2 ]
@@ -47,21 +54,20 @@ pointformer_options:
 
 lgr:
     use_lgr: False
-    num_refinement_steps: 4
-    acceptance_radius: 0.1
+    num_refinement_steps: 5
+    acceptance_radius: 0.05
 
 ransac:
     use_ransac: False
 
 model:
-    model: qk_regtr_full_pointformer.RegTR
-    
+    model: qk_regtr_full.RegTR
+
     remove_points_from_val: False
-    val_threshold: 0.15
 
     # Threshold Correlation values
     threshold_corr: False
-    corr_threshold: 0.1
+    corr_threshold: 0.5
 
     # Use Overlap values to remove outliers
     remove_outliers_overlap: False
@@ -73,9 +79,9 @@ model:
     lowe_thres: 0.9
 
     # Sinkhorn
-    use_sinkhorn: True
-    sinkhorn_itr: 3
-    slack: True
+    use_sinkhorn: False
+    sinkhorn_itr: 1
+    slack: False
     use_attn_affinity: False
     use_corr_affinity: False
 
@@ -101,19 +107,21 @@ model:
 
 
 losses:
+    # Inlier Loss
     inlier_loss_on: False
+
     # Overlap loss
     wt_overlap: 1.0
     overlap_loss_pyr: 3
     overlap_loss_on: [5]  # Apply loss on only final output
 
     # Feature loss - I use the following thresholds
-    # Voxel sizes at different octaves: (0) 0.025, (1) 0.05, (2) 0.1, (3) 0.2
+    # Voxel sizes at different octaves: (0) 0.06, (1) 0.12
     # r_p and r_n are set to 1x and 2.0x the voxel sizes respectively
     wt_feature: 0.1
     wt_feature_un: 0.0
-    r_p: 0.2
-    r_n: 0.4
+    r_p: 0.12
+    r_n: 0.24
     feature_loss_on: [0]
     feature_loss_type: infonce
 

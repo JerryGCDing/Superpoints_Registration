@@ -9,6 +9,8 @@ from torch.utils.data import Dataset
 
 from kiss_icp.pybind import kiss_icp_pybind
 
+from .array_ops import GridSample
+
 def voxel_down_sample(points: np.ndarray, voxel_size: float):
     _points = kiss_icp_pybind._Vector3dVector(points)
     return np.asarray(kiss_icp_pybind._voxel_down_sample(_points, voxel_size))
@@ -69,6 +71,7 @@ class KittiDataset(Dataset):
         # self.augment_shift_range = config.augment_shift_range
         # self.augment_scale_max = config.augment_scale_max
         # self.augment_scale_min = config.augment_scale_min
+        self.grid_sample = GridSample(config.grid_size)
 
         # Initiate containers
         self.files = []
@@ -202,8 +205,6 @@ class KittiDataset(Dataset):
 
         src_pcd_input = voxel_down_sample(xyz0, self.voxel_size)
         tgt_pcd_input = voxel_down_sample(xyz1, self.voxel_size)
-        # src_pcd_input = xyz0
-        # tgt_pcd_input = xyz1
 
         # if self.pairs_data is None:
         #     src_overlap_mask, tgt_overlap_mask, src_tgt_corr = compute_overlap(
@@ -229,15 +230,18 @@ class KittiDataset(Dataset):
             src_pcd_input = src_pcd_input[src_pcd_input[:, 2] > -1]
             tgt_pcd_input = tgt_pcd_input[tgt_pcd_input[:, 2] > -1]
 
+        src_grid = self.grid_sample(src_pcd_input)
+        tgt_grid = self.grid_sample(tgt_pcd_input)
 
-        # print("np array: ", src_overlap_mask.shape, tgt_overlap_mask.shape)
-        data = {}
-        data['src_xyz'] = torch.from_numpy(src_pcd_input.astype(np.float32))
-        data['tgt_xyz'] = torch.from_numpy(tgt_pcd_input.astype(np.float32))
+        data = {'src_points': torch.from_numpy(src_pcd_input.astype(np.float32)), # X, Y, Z
+                'tgt_points': torch.from_numpy(tgt_pcd_input.astype(np.float32)),
+                'src_grid': torch.from_numpy(src_grid['grid_coord']),
+                'tgt_grid': torch.from_numpy(tgt_grid['grid_coord']),
+                'src_length': src_pcd_input.shape[0],
+                'tgt_length': tgt_pcd_input.shape[0],
+                'pose': torch.from_numpy(tsfm.astype(np.float32)), 'src_path': None, 'tgt_path': None}
         # data['src_overlap'] = torch.from_numpy(src_overlap_mask)
         # data['tgt_overlap'] = torch.from_numpy(tgt_overlap_mask)
-        data['pose'] = torch.from_numpy(tsfm.astype(np.float32))
-        data['src_path'], data['tgt_path'] = None, None
 
         # print("torch tensor: ", data['src_overlap'].shape, data['tgt_overlap'].shape)
         if self.transforms is not None:

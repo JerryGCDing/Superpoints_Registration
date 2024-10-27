@@ -116,21 +116,22 @@ class RegTR(GenericRegModel):
         self.num_points_MP = []
         self.num_points_NP = []
 
-    def forward(self, src_dict, tgt_dict):
+    def forward(self, batch):
         src_pcd = {
-            "feat": src_dict["points"][0],
-            "coord": src_dict["points"][0][..., :3],
-            "grid_coord": src_dict["grid_coord"].int(),
-            "offset": torch.cumsum(src_dict["lengths"][0], dim=0).to(src_dict["points"][0].device)
+            "feat": batch["src_points"][0],
+            "coord": batch["src_points"][0],
+            "grid_coord": batch["src_grid"].int(),
+            "offset": torch.cumsum(batch["src_length"][0], dim=0).to(batch["src_points"][0].device)
         }
-        src_lens = src_dict["lengths"]
+        src_lens = batch["src_length"]
+
         tgt_pcd = {
-            "feat": tgt_dict["points"][0],
-            "coord": tgt_dict["points"][0][..., :3],
-            "grid_coord": tgt_dict["grid_coord"].int(),
-            "offset": torch.cumsum(tgt_dict["lengths"][0], dim=0).to(tgt_dict["points"][0].device)
+            "feat": batch["tgt_points"][0],
+            "coord": batch["tgt_points"][0],
+            "grid_coord": batch["tgt_grid"].int(),
+            "offset": torch.cumsum(batch["tgt_length"][0], dim=0).to(batch["tgt_points"][0].device)
         }
-        tgt_lens = tgt_dict["lengths"]
+        tgt_lens = batch["tgt_length"]
 
         ####################
         # REGTR Encoder
@@ -207,7 +208,6 @@ class RegTR(GenericRegModel):
         return outputs
 
     def compute_loss(self, pred, batch):
-
         losses = {}
         kpconv_meta = batch['kpconv_meta']
         pose_gt = batch['pose']

@@ -3,7 +3,7 @@ general:
 
 dataset:
     dataset: kitti
-    root: /work/nufr/aniket/Datasets/KITTI_ODOM
+    root: /work/vig/Datasets/KITTI_Odometry
     validation_seq: "01"
     augment_noise: 0.01
     perturb_pose: large

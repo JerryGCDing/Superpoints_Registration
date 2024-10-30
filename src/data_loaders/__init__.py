@@ -2,7 +2,7 @@ import torch
 
 import data_loaders.transforms
 import data_loaders.modelnet as modelnet
-from data_loaders.collate_functions import collate_pair, collate_tensors, collate_sparse_tensors
+from data_loaders.collate_functions import collate_pair, collate_tensors    # , collate_sparse_tensors
 from data_loaders.threedmatch import ThreeDMatchDataset
 from data_loaders.kitti_pred import KittiDataset
 from torch.utils.data.distributed import DistributedSampler
@@ -84,14 +84,14 @@ def get_dataloader(cfg, phase, num_workers=0, num_gpus=1):
             collate_fn=collate_tensors,
             sampler=torch.utils.data.distributed.DistributedSampler(dataset) if num_gpus > 1 else None
         )
-    elif cfg.model in ["qk_mink.RegTR", "qk_mink_2.RegTR", "qk_mink_3.RegTR", "qk_mink_4.RegTR"]:
-        data_loader = torch.utils.data.DataLoader(
-            dataset,
-            batch_size=batch_size,
-            shuffle=shuffle if num_gpus == 1 else False,
-            num_workers=num_workers,
-            collate_fn=collate_sparse_tensors,
-            sampler=torch.utils.data.distributed.DistributedSampler(dataset) if num_gpus > 1 else None
-        )
+    # elif cfg.model in ["qk_mink.RegTR", "qk_mink_2.RegTR", "qk_mink_3.RegTR", "qk_mink_4.RegTR"]:
+    #     data_loader = torch.utils.data.DataLoader(
+    #         dataset,
+    #         batch_size=batch_size,
+    #         shuffle=shuffle if num_gpus == 1 else False,
+    #         num_workers=num_workers,
+    #         collate_fn=collate_sparse_tensors,
+    #         sampler=torch.utils.data.distributed.DistributedSampler(dataset) if num_gpus > 1 else None
+    #     )
     
     return data_loader

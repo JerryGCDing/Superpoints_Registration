@@ -3,7 +3,7 @@
 
 from typing import List
 
-import MinkowskiEngine as ME
+# import MinkowskiEngine as ME
 import numpy as np
 import torch.nn
 import torch.nn.functional as F

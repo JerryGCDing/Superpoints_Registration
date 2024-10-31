@@ -25,10 +25,10 @@ class ThreeDMatchDataset(Dataset):
 
         assert phase in ['train', 'val', 'test']
         if phase in ['train', 'val']:
-            info_fname = f'datasets/3dmatch/{phase}_info.pkl'
+            info_fname = f'/work/vig/tianyed/Superpoint_Reg/Superpoints_Registration/src/datasets/3dmatch/{phase}_info.pkl'
             pairs_fname = f'{phase}_pairs-overlapmask.h5'
         else:
-            info_fname = f'datasets/3dmatch/{phase}_{cfg.benchmark}_info.pkl'
+            info_fname = f'/work/vig/tianyed/Superpoint_Reg/Superpoints_Registration/src/datasets/3dmatch/{phase}_{cfg.benchmark}_info.pkl'
             pairs_fname = f'{phase}_{cfg.benchmark}_pairs-overlapmask.h5'
 
         with open(info_fname, 'rb') as fid:

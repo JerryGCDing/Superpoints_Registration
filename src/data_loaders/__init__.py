@@ -2,7 +2,7 @@ import torch
 
 import data_loaders.transforms
 import data_loaders.modelnet as modelnet
-from data_loaders.collate_functions import collate_pair, collate_tensors, collate_fn  # , collate_sparse_tensors
+from data_loaders.collate_functions import collate_pair, collate_tensors, PointCloudRegistrationCollateFn  # , collate_sparse_tensors
 from data_loaders.threedmatch import ThreeDMatchDataset
 from data_loaders.kitti_pred import KittiDataset
 from torch.utils.data.distributed import DistributedSampler
@@ -65,6 +65,7 @@ def get_dataloader(cfg, phase, num_workers=0, num_gpus=1):
     shuffle = phase == 'train'
     shuffle = False
 
+    collate_fn = PointCloudRegistrationCollateFn()
     if cfg.model in ["regtr.RegTR", "qk_regtr.RegTR", "qk_regtr_old.RegTR", "qk_regtr_overlap.RegTR",
                      "qk_regtr_full.RegTR", "qk_regtr_full_pointformer.RegTR"]:
         data_loader = torch.utils.data.DataLoader(

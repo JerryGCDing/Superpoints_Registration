@@ -199,8 +199,6 @@ class ModelNetHdf(Dataset):
                 'tgt_points': torch.from_numpy(tgt_pcd_input),
                 'src_grid': torch.from_numpy(src_grid['grid_coord']),
                 'tgt_grid': torch.from_numpy(tgt_grid['grid_coord']),
-                'src_length': src_pcd_input.shape[0],
-                'tgt_length': tgt_pcd_input.shape[0],
                 'tgt_raw': torch.from_numpy(sample['points_raw'][:, :3]),
                 'src_overlap': torch.from_numpy(sample['src_overlap']),
                 'tgt_overlap': torch.from_numpy(sample['ref_overlap']),

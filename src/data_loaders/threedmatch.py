@@ -99,8 +99,6 @@ class ThreeDMatchDataset(Dataset):
             'tgt_points': torch.from_numpy(tgt_xyz),
             'src_grid': torch.from_numpy(src_grid['grid_coord']),
             'tgt_grid': torch.from_numpy(tgt_grid['grid_coord']),
-            'src_length': src_xyz.shape[0],
-            'tgt_length': tgt_xyz.shape[0],
             'src_overlap': torch.from_numpy(src_overlap_mask),
             'tgt_overlap': torch.from_numpy(tgt_overlap_mask),
             'correspondences': torch.from_numpy(src_tgt_corr),  # indices

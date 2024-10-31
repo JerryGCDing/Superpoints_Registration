@@ -237,8 +237,6 @@ class KittiDataset(Dataset):
                 'tgt_points': torch.from_numpy(tgt_pcd_input.astype(np.float32)),
                 'src_grid': torch.from_numpy(src_grid['grid_coord']),
                 'tgt_grid': torch.from_numpy(tgt_grid['grid_coord']),
-                'src_length': src_pcd_input.shape[0],
-                'tgt_length': tgt_pcd_input.shape[0],
                 'pose': torch.from_numpy(tsfm.astype(np.float32)), 'src_path': None, 'tgt_path': None}
         # data['src_overlap'] = torch.from_numpy(src_overlap_mask)
         # data['tgt_overlap'] = torch.from_numpy(tgt_overlap_mask)

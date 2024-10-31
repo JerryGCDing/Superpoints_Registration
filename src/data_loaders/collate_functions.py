@@ -1,10 +1,40 @@
 import torch
 from torch.utils.data.dataloader import default_collate
-from typing import Sequence, Mapping
+from typing import Sequence, Mapping, List, Callable
 # import MinkowskiEngine as ME
+import numpy as np
+from itertools import chain
 
 
-def collate_fn(batch):
+def array_to_tensor(x):
+    """Convert all numpy arrays to pytorch tensors."""
+    if isinstance(x, list):
+        x = [array_to_tensor(item) for item in x]
+    elif isinstance(x, tuple):
+        x = tuple([array_to_tensor(item) for item in x])
+    elif isinstance(x, dict):
+        x = {key: array_to_tensor(value) for key, value in x.items()}
+    elif isinstance(x, np.ndarray):
+        x = torch.from_numpy(x)
+    return x
+
+def collate_dict(data_dicts: List[dict]) -> dict:
+    """Collate a batch of dict.
+
+    The collated dict contains all keys from the batch, with each key mapped to a list of data. If a certain key is
+    missing in one dict, `None` is used for padding so that all lists have the same length (the batch size).
+
+    Args:
+        data_dicts (List[dict]): A batch of data dicts.
+
+    Returns:
+        A dict with all data collated.
+    """
+    keys = set(chain(*[list(data_dict.keys()) for data_dict in data_dicts]))
+    collated_dict = {key: [data_dict.get(key) for data_dict in data_dicts] for key in keys}
+    return collated_dict
+
+def ptv3_collate_fn(batch):
     """
     collate function for point cloud which support dict and list,
     'coord' is necessary to determine 'offset'
@@ -20,11 +50,11 @@ def collate_fn(batch):
     elif isinstance(batch[0], Sequence):
         for data in batch:
             data.append(torch.tensor([data[0].shape[0]]))
-        batch = [collate_fn(samples) for samples in zip(*batch)]
+        batch = [ptv3_collate_fn(samples) for samples in zip(*batch)]
         batch[-1] = torch.cumsum(batch[-1], dim=0).int()
         return batch
     elif isinstance(batch[0], Mapping):
-        batch = {key: collate_fn([d[key] for d in batch]) for key in batch[0]}
+        batch = {key: ptv3_collate_fn([d[key] for d in batch]) for key in batch[0]}
         for key in batch.keys():
             if "offset" in key:
                 batch[key] = torch.cumsum(batch[key], dim=0)
@@ -95,3 +125,46 @@ def collate_tensors(list_data):
 #     data['tgt_raw'] =  torch.stack([list_data[b]['tgt_raw'] for b in range(batch_sz)], dim=0)
 #
 #     return data
+
+
+class PointCloudRegistrationCollateFn(Callable):
+    def __call__(self, data_dicts: List[dict]):
+        batch_size = len(data_dicts)
+
+        # 1. collate dict
+        collated_dict = collate_dict(data_dicts)
+
+        # additional attributes
+        # queries = np.stack(collated_dict.pop("queries"), axis=0)
+        # targets = np.stack(collated_dict.pop("targets"), axis=0)
+        # norm_queries = np.stack(collated_dict.pop("norm_queries"), axis=0)
+        # norm_targets = np.stack(collated_dict.pop("norm_targets"), axis=0)
+
+        if batch_size == 1:
+            collated_dict = {key: value[0] for key, value in collated_dict.items()}
+            collated_dict["src_length"] = np.asarray([collated_dict["src_points"].shape[0]])
+            collated_dict["tgt_length"] = np.asarray([collated_dict["tgt_points"].shape[0]])
+        else:
+            src_points_list = collated_dict.pop("src_points")
+            tgt_points_list = collated_dict.pop("tgt_points")
+            collated_dict["src_points"] = np.concatenate(src_points_list, axis=0)
+            collated_dict["tgt_points"] = np.concatenate(tgt_points_list, axis=0)
+            collated_dict["src_length"] = np.asarray([points.shape[0] for points in src_points_list])
+            collated_dict["tgt_length"] = np.asarray([points.shape[0] for points in tgt_points_list])
+
+            # additional attributes
+            collated_dict["src_grid"] = np.concatenate(collated_dict.pop("src_grid"), axis=0)
+            collated_dict["tgt_grid"] = np.concatenate(collated_dict.pop("tgt_grid"), axis=0)
+
+        collated_dict["batch_size"] = batch_size
+
+        # additional attributes
+        # collated_dict["queries"] = queries
+        # collated_dict["targets"] = targets
+        # collated_dict["norm_queries"] = norm_queries
+        # collated_dict["norm_targets"] = norm_targets
+
+        # 4. array to tensor
+        collated_dict = array_to_tensor(collated_dict)
+
+        return collated_dict

@@ -1,5 +1,36 @@
 import torch
+from torch.utils.data.dataloader import default_collate
+from typing import Sequence, Mapping
 # import MinkowskiEngine as ME
+
+
+def collate_fn(batch):
+    """
+    collate function for point cloud which support dict and list,
+    'coord' is necessary to determine 'offset'
+    """
+    if not isinstance(batch, Sequence):
+        raise TypeError(f"{batch.dtype} is not supported.")
+
+    if isinstance(batch[0], torch.Tensor):
+        return torch.cat(list(batch))
+    elif isinstance(batch[0], str):
+        # str is also a kind of Sequence, judgement should before Sequence
+        return list(batch)
+    elif isinstance(batch[0], Sequence):
+        for data in batch:
+            data.append(torch.tensor([data[0].shape[0]]))
+        batch = [collate_fn(samples) for samples in zip(*batch)]
+        batch[-1] = torch.cumsum(batch[-1], dim=0).int()
+        return batch
+    elif isinstance(batch[0], Mapping):
+        batch = {key: collate_fn([d[key] for d in batch]) for key in batch[0]}
+        for key in batch.keys():
+            if "offset" in key:
+                batch[key] = torch.cumsum(batch[key], dim=0)
+        return batch
+    else:
+        return default_collate(batch)
 
 def collate_pair(list_data):
     """Collates data using a list, for tensors which are of different sizes

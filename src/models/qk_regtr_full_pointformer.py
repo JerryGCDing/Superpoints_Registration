@@ -36,8 +36,6 @@ class RegTR(GenericRegModel):
         # KPConv Encoder/decoder
         #######################
         self.kpf_encoder = PTv3_Encoder(cfg, cfg.d_embed)
-        # Bottleneck layer to shrink KPConv features to a smaller dimension for running attention
-        self.feat_proj = nn.Linear(self.kpf_encoder.encoder_skip_dims[-1], cfg.d_embed, bias=True)
 
         #######################
         # Embeddings
@@ -140,9 +138,7 @@ class RegTR(GenericRegModel):
         src_feat = self.point_encoder(src_pcd)
         tgt_feat = self.point_encoder(tgt_pcd)
 
-        src_feat = self.feat_proj(src_feat)
         src_feats = torch.split(src_feat, src_lens, dim=0)
-        tgt_feat = self.feat_proj(tgt_feat)
         tgt_feats = torch.split(tgt_feat, tgt_lens, dim=0)
 
         ##### NEED CHECK
@@ -181,8 +177,8 @@ class RegTR(GenericRegModel):
         tgt_feats_cond_unpad = unpad_sequences(tgt_feats_cond, tgt_lens)
 
         # Softmax Correlation
-        src_coords = torch.split(src_dict['coord'], src_lens, dim=0)
-        tgt_coords = torch.split(tgt_dict['coord'], tgt_lens, dim=0)
+        src_coords = torch.split(src_pcd['coord'], src_lens, dim=0)
+        tgt_coords = torch.split(tgt_pcd['coord'], tgt_lens, dim=0)
         pose_sfc, attn_list, overlap_prob_list, ind_list, src_pts_list, tgt_pts_list = self.softmax_correlation(src_feats_cond_unpad, tgt_feats_cond_unpad,
                                      src_coords, tgt_coords, src_overlap_list, tgt_overlap_list)
 

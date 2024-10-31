@@ -136,7 +136,6 @@ class ModelNetHdf(Dataset):
         """
         self.config = args
         self._root = root
-        self.n_in_feats = args.in_feats_dim
         self.overlap_radius = args.overlap_radius
 
         if not os.path.exists(os.path.join(root)):

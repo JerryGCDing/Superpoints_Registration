@@ -61,7 +61,7 @@ ransac:
     use_ransac: False
 
 model:
-    model: qk_regtr_full.RegTR
+    model: qk_regtr_full_pointformer.RegTR
 
     remove_points_from_val: False
 

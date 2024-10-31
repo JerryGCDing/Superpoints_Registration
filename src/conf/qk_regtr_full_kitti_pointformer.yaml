@@ -37,7 +37,6 @@ pointformer_options:
     enc_channels: [ 48, 96, 192, 384, 768 ]
     enc_num_head: [ 2, 4, 8, 16, 32 ]
     enc_patch_size: [ 1024, 1024, 1024, 1024, 1024 ]
-    project_dim: 1024
     mlp_ratio: 4
     qkv_bias: True
     qk_scale: None

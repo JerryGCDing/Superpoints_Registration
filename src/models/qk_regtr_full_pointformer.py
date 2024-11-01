@@ -1,23 +1,21 @@
 """REGTR network architecture
 """
-import math
-import time
 import torch
 import torch.nn as nn
 
 from .backbone_pointformer.pointformer_encoder import PTv3_Encoder
-from .backbone_kpconv.kpconv import compute_overlaps
 from .generic_reg_model import GenericRegModel
 from .losses.corr_loss import CorrCriterion
 from .losses.feature_loss import InfoNCELossFull, CircleLossFull
 from .transformer.position_embedding import PositionEmbeddingCoordsSine, PositionEmbeddingLearned
 from .transformer.transformers import TransformerCrossEncoderLayer, TransformerCrossEncoder
-from utils.se3_torch import compute_rigid_transform, se3_transform_list, se3_transform, se3_inv, compute_rigid_transform_with_sinkhorn, pairwise_distance
+from utils.se3_torch import compute_rigid_transform, se3_transform_list, se3_transform, se3_inv, \
+    compute_rigid_transform_with_sinkhorn, pairwise_distance
 from utils.seq_manipulation import split_src_tgt, pad_sequence, unpad_sequences
+
 _TIMEIT = False
-from sklearn.metrics import confusion_matrix
-import numpy as np
 import torch.utils.checkpoint
+
 """
 This implementation contains every test
 1. Lowe's ratio test
@@ -25,6 +23,42 @@ This implementation contains every test
 3. Ransac
 4. Using Overlap values as weights
 """
+
+
+def offset2lengths(offsets):
+    lengths = torch.cat([offsets[:1], offsets[1:] - offsets[:-1]])
+    return lengths
+
+
+def compute_overlaps(batch):
+    """Compute groundtruth overlap for each point+level. Note that this is a
+    approximation since
+    1) it relies on the pooling indices from the preprocessing which caps the number of
+       points considered
+    2) we do a unweighted average at each level, without considering the
+       number of points used to generate the estimate at the previous level
+    """
+
+    src_overlap = batch['src_overlap']
+    tgt_overlap = batch['tgt_overlap']
+    kpconv_meta = batch['kpconv_meta']
+    n_pyr = len(kpconv_meta['points'])
+
+    overlap_pyr = {'pyr_0': torch.cat(src_overlap + tgt_overlap, dim=0).type(torch.float)}
+    invalid_indices = [s.sum() for s in kpconv_meta['stack_lengths']]
+    for p in range(1, n_pyr):
+        pooling_indices = kpconv_meta['pools'][p - 1].clone()
+        valid_mask = pooling_indices < invalid_indices[p - 1]
+        pooling_indices[~valid_mask] = 0
+
+        # Average pool over indices
+        overlap_gathered = overlap_pyr[f'pyr_{p - 1}'][pooling_indices] * valid_mask
+        overlap_gathered = torch.sum(overlap_gathered, dim=1) / torch.sum(valid_mask, dim=1)
+        overlap_gathered = torch.clamp(overlap_gathered, min=0, max=1)
+        overlap_pyr[f'pyr_{p}'] = overlap_gathered
+
+    return overlap_pyr
+
 
 class RegTR(GenericRegModel):
     def __init__(self, cfg, *args, **kwargs):
@@ -35,7 +69,7 @@ class RegTR(GenericRegModel):
         #######################
         # KPConv Encoder/decoder
         #######################
-        self.kpf_encoder = PTv3_Encoder(cfg, cfg.d_embed)
+        self.point_encoder = PTv3_Encoder(cfg, cfg.d_embed)
 
         #######################
         # Embeddings
@@ -116,20 +150,18 @@ class RegTR(GenericRegModel):
 
     def forward(self, batch):
         src_pcd = {
-            "feat": batch["src_points"][0],
-            "coord": batch["src_points"][0],
+            "feat": batch["src_points"],
+            "coord": batch["src_points"],
             "grid_coord": batch["src_grid"].int(),
-            "offset": torch.cumsum(batch["src_length"][0], dim=0).to(batch["src_points"][0].device)
+            "offset": torch.cumsum(batch["src_length"], dim=0).to(batch["src_points"].device)
         }
-        src_lens = batch["src_length"]
 
         tgt_pcd = {
-            "feat": batch["tgt_points"][0],
-            "coord": batch["tgt_points"][0],
+            "feat": batch["tgt_points"],
+            "coord": batch["tgt_points"],
             "grid_coord": batch["tgt_grid"].int(),
-            "offset": torch.cumsum(batch["tgt_length"][0], dim=0).to(batch["tgt_points"][0].device)
+            "offset": torch.cumsum(batch["tgt_length"], dim=0).to(batch["tgt_points"].device)
         }
-        tgt_lens = batch["tgt_length"]
 
         ####################
         # REGTR Encoder
@@ -137,14 +169,15 @@ class RegTR(GenericRegModel):
         # KPConv encoder (downsampling) to obtain unconditioned features
         src_feat = self.point_encoder(src_pcd)
         tgt_feat = self.point_encoder(tgt_pcd)
+        src_lens = offset2lengths(src_feat['offset']).tolist()
+        tgt_lens = offset2lengths(tgt_feat['offset']).tolist()
 
-        src_feats = torch.split(src_feat, src_lens, dim=0)
-        tgt_feats = torch.split(tgt_feat, tgt_lens, dim=0)
+        src_feats = torch.split(src_feat['feat'], src_lens, dim=0)
+        tgt_feats = torch.split(tgt_feat['feat'], tgt_lens, dim=0)
 
         ##### NEED CHECK
-        print(src_pcd['coord'].shape)
-        src_pe = torch.split(self.pos_embed(src_pcd['coord']), src_lens, dim=0)
-        tgt_pe = torch.split(self.pos_embed(tgt_pcd['coord']), tgt_lens, dim=0)
+        src_pe = torch.split(self.pos_embed(src_feat['coord']), src_lens, dim=0)
+        tgt_pe = torch.split(self.pos_embed(tgt_feat['coord']), tgt_lens, dim=0)
         src_pe_padded, _, _ = pad_sequence(src_pe)
         tgt_pe_padded, _, _ = pad_sequence(tgt_pe)
 
@@ -162,7 +195,7 @@ class RegTR(GenericRegModel):
             src_pos=src_pe_padded if self.cfg.transformer_encoder_has_pos_emb else None,
             tgt_pos=tgt_pe_padded if self.cfg.transformer_encoder_has_pos_emb else None,
         )
-        
+
         #####################
         # Overlap Prediction
         #####################
@@ -177,10 +210,11 @@ class RegTR(GenericRegModel):
         tgt_feats_cond_unpad = unpad_sequences(tgt_feats_cond, tgt_lens)
 
         # Softmax Correlation
-        src_coords = torch.split(src_pcd['coord'], src_lens, dim=0)
-        tgt_coords = torch.split(tgt_pcd['coord'], tgt_lens, dim=0)
-        pose_sfc, attn_list, overlap_prob_list, ind_list, src_pts_list, tgt_pts_list = self.softmax_correlation(src_feats_cond_unpad, tgt_feats_cond_unpad,
-                                     src_coords, tgt_coords, src_overlap_list, tgt_overlap_list)
+        src_coords = torch.split(src_feat['coord'], src_lens, dim=0)
+        tgt_coords = torch.split(tgt_feat['coord'], tgt_lens, dim=0)
+        pose_sfc, attn_list, overlap_prob_list, ind_list, src_pts_list, tgt_pts_list = self.softmax_correlation(
+            src_feats_cond_unpad, tgt_feats_cond_unpad,
+            src_coords, tgt_coords, src_overlap_list, tgt_overlap_list)
 
         outputs = {
             # Predictions
@@ -205,29 +239,29 @@ class RegTR(GenericRegModel):
 
     def compute_loss(self, pred, batch):
         losses = {}
-        kpconv_meta = batch['kpconv_meta']
         pose_gt = batch['pose']
-        p = len(kpconv_meta['stack_lengths']) - 1 
+        # p = len(kpconv_meta['stack_lengths']) - 1
+        #
+        # try:
+        #     batch['overlap_pyr'] = compute_overlaps(batch)
+        #     src_overlap_p, tgt_overlap_p = \
+        #         split_src_tgt(batch['overlap_pyr'][f'pyr_{p}'], kpconv_meta['stack_lengths'][p])
+        #
+        #     # Overlap prediction loss
+        #     all_overlap_pred = torch.cat(pred['src_overlap'] + pred['tgt_overlap'], dim=-2)
+        #     all_overlap_gt = batch['overlap_pyr'][f'pyr_{p}']
+        #
+        #     overlap_loss = self.overlap_criterion(all_overlap_pred[0, :, 0], all_overlap_gt)
+        # except:
+        #     print("Error in overlap loss")
 
-        try:
-            batch['overlap_pyr'] = compute_overlaps(batch)
-            src_overlap_p, tgt_overlap_p = \
-                split_src_tgt(batch['overlap_pyr'][f'pyr_{p}'], kpconv_meta['stack_lengths'][p])
-
-            # Overlap prediction loss
-            all_overlap_pred = torch.cat(pred['src_overlap'] + pred['tgt_overlap'], dim=-2)
-            all_overlap_gt = batch['overlap_pyr'][f'pyr_{p}']
-            
-            overlap_loss = self.overlap_criterion(all_overlap_pred[0, :, 0], all_overlap_gt)
-        except:
-            print("Error in overlap loss")
-        
         # Inlier Loss
         if self.cfg.inlier_loss_on:
             inlier_loss = 0
             for i in range(len(batch['pose'])):
-                inlier_loss += torch.linalg.norm(pred['tgt_corr'][i] - se3_transform(pred['pose'][i], pred['src_corr'][i]), dim=1).mean()
-        
+                inlier_loss += torch.linalg.norm(
+                    pred['tgt_corr'][i] - se3_transform(pred['pose'][i], pred['src_corr'][i]), dim=1).mean()
+
         # Feature Loss
         for i in self.cfg.feature_loss_on:
             feature_loss = self.feature_criterion(
@@ -243,35 +277,30 @@ class RegTR(GenericRegModel):
         T_loss = 0
         for i in range(len(pc_tf_gt)):
             T_loss += torch.mean(torch.abs(pc_tf_gt[i] - pc_tf_pred[i])).requires_grad_()
-        
-        if self.verbose:
-            print(f"Feature loss: {feature_loss}")
-            print(f"Overlap loss: {overlap_loss}")
-            print(f"T loss: {T_loss}")
 
         losses['feature'] = feature_loss
         losses['T'] = T_loss
-        losses['overlap'] = overlap_loss
-        losses['total'] = T_loss + 0.1 * feature_loss + overlap_loss 
-        
+        # losses['overlap'] = overlap_loss
+        losses['total'] = T_loss + 0.1 * feature_loss  # + overlap_loss
+
         if self.cfg.inlier_loss_on:
             losses['inlier'] = inlier_loss
             losses['total'] += inlier_loss
         return losses
 
     def ratio_test(self, attn, dim):
-        if dim==1:
-            val2, ind2 = torch.topk(attn,2, dim=1)
-            val2_ratio = val2[:,1,:]/val2[:,0,:]
-            val2 = torch.where(val2_ratio<self.cfg.lowe_thres, val2, 0)
-            val = val2[:,0,:]
-            ind = ind2[:,0,:]
-        elif dim==2:
-            val2, ind2 = torch.topk(attn,2, dim=2)
-            val2_ratio = val2[:,:,1]/val2[:,:,0]
-            val2 = torch.where(val2_ratio<self.cfg.lowe_thres, val2[:,:,0], 0)
+        if dim == 1:
+            val2, ind2 = torch.topk(attn, 2, dim=1)
+            val2_ratio = val2[:, 1, :] / val2[:, 0, :]
+            val2 = torch.where(val2_ratio < self.cfg.lowe_thres, val2, 0)
+            val = val2[:, 0, :]
+            ind = ind2[:, 0, :]
+        elif dim == 2:
+            val2, ind2 = torch.topk(attn, 2, dim=2)
+            val2_ratio = val2[:, :, 1] / val2[:, :, 0]
+            val2 = torch.where(val2_ratio < self.cfg.lowe_thres, val2[:, :, 0], 0)
             val = val2
-            ind = ind2[:,:,0]
+            ind = ind2[:, :, 0]
 
         return ind, val
 
@@ -288,30 +317,30 @@ class RegTR(GenericRegModel):
             pose = compute_rigid_transform(src_points, tgt_points, weights)
 
         return pose
-    
+
     def ransac(self, src, tgt, weights):
         N = src.size(0)
         itr = 500
         sample_size = 100
         for i in range(itr):
             idx = torch.randint(0, N, (sample_size,)).cuda()
-            src_samples = torch.gather(src, 0, idx.unsqueeze(-1).expand(-1,3))
-            tgt_samples = torch.gather(tgt, 0, idx.unsqueeze(-1).expand(-1,3))
+            src_samples = torch.gather(src, 0, idx.unsqueeze(-1).expand(-1, 3))
+            tgt_samples = torch.gather(tgt, 0, idx.unsqueeze(-1).expand(-1, 3))
             weight_samples = torch.gather(weights, 0, idx)
 
             T_estimated = compute_rigid_transform(src_samples, tgt_samples, weight_samples)
             src_tf = se3_transform(T_estimated, src)
             loss = torch.linalg.norm(tgt - src_tf, dim=1).mean()
 
-            if i==0:
+            if i == 0:
                 T = T_estimated
                 best_loss = loss
-            elif loss<best_loss:
+            elif loss < best_loss:
                 T = T_estimated
                 best_loss = loss
 
-        return T 
-    
+        return T
+
     def softmax_correlation(self, src_feats, tgt_feats, src_xyz, tgt_xyz, src_overlap_list, tgt_overlap_list):
         """
         Args:
@@ -342,9 +371,9 @@ class RegTR(GenericRegModel):
             self.num_points_MP.append(M)
 
             # Correlation = [1, N, M]
-            correlation = torch.matmul(src_feats[i], tgt_feats[i].permute(0, 2, 1)) / (D**0.5)
-            
-            if N>M:
+            correlation = torch.matmul(src_feats[i], tgt_feats[i].permute(0, 2, 1)) / (D ** 0.5)
+
+            if N > M:
                 if self.dual_normalization:
                     attn_src = torch.nn.functional.softmax(correlation, dim=-2)
                     attn_tgt = torch.nn.functional.softmax(correlation, dim=-1)
@@ -362,13 +391,13 @@ class RegTR(GenericRegModel):
                 # Threshold the coorelation values?
                 if self.cfg.threshold_corr:
                     # val = torch.where(val>self.cfg.corr_threshold, val, 0)
-                    val = torch.where(val>torch.median(val), val, 0)
+                    val = torch.where(val > torch.median(val), val, 0)
 
                 if self.cfg.use_sinkhorn:
                     src_pts = src_xyz[i]
                 else:
                     try:
-                        src_pts = torch.gather(src_xyz[i], 0, ind.permute(1,0).expand(-1,3))  # [N, 3] -> [M, 3]
+                        src_pts = torch.gather(src_xyz[i], 0, ind.permute(1, 0).expand(-1, 3))  # [N, 3] -> [M, 3]
                     except:
                         raise ValueError("You found the error")
                 tgt_pts = tgt_xyz[i]
@@ -389,31 +418,33 @@ class RegTR(GenericRegModel):
                 # print(f"tgt_pts shape is: {tgt_pts.shape}")
                 # print(f"new N is: {int(0.2*M)}")
                 if self.cfg.remove_points_from_val:
-                    val, ind = torch.topk(val, int(self.cfg.val_threshold*M), dim=1)
-                    src_pts = torch.gather(src_pts, 0, ind.permute(1,0).expand(-1,3))
-                    tgt_pts = torch.gather(tgt_pts, 0, ind.permute(1,0).expand(-1,3))
+                    val, ind = torch.topk(val, int(self.cfg.val_threshold * M), dim=1)
+                    src_pts = torch.gather(src_pts, 0, ind.permute(1, 0).expand(-1, 3))
+                    tgt_pts = torch.gather(tgt_pts, 0, ind.permute(1, 0).expand(-1, 3))
 
                 # print(f"src_pts shape is: {src_pts.shape}")
                 # print(f"tgt_pts shape is: {tgt_pts.shape}")
-                
+
                 # raise ValueError
 
                 # Compute the transformation matrix
                 if self.cfg.use_sinkhorn:
-                    if self.cfg.use_attn_affinity: # Use attention matrix as the affinity matrix
-                        affinity = torch.gather(attn, 1, ind.unsqueeze(-1).expand(-1,-1,M))
+                    if self.cfg.use_attn_affinity:  # Use attention matrix as the affinity matrix
+                        affinity = torch.gather(attn, 1, ind.unsqueeze(-1).expand(-1, -1, M))
                         print(src_pts.shape)
                         print(tgt_xyz[i].shape)
                         print(tgt_pts.shape)
                         raise ValueError
-                        T = compute_rigid_transform_with_sinkhorn(src_pts, tgt_xyz[i], affinity, self.cfg.slack, self.cfg.sinkhorn_itr)
+                        T = compute_rigid_transform_with_sinkhorn(src_pts, tgt_xyz[i], affinity, self.cfg.slack,
+                                                                  self.cfg.sinkhorn_itr)
 
-                    elif self.cfg.use_corr_affinity: # Compute affinity matrix from the correlation matrix
-                        corr = torch.gather(correlation, 1, ind.unsqueeze(-1).expand(-1,-1,M))
-                        score_matrix = torch.clamp(1-corr, min=0.0, max=None)
-                        affinity = -(score_matrix - self.softplus(self.alpha))/(torch.exp(self.beta) + 0.02)
-                        T = compute_rigid_transform_with_sinkhorn(src_pts, tgt_xyz[i], affinity, self.cfg.slack, self.cfg.sinkhorn_itr)
-                    
+                    elif self.cfg.use_corr_affinity:  # Compute affinity matrix from the correlation matrix
+                        corr = torch.gather(correlation, 1, ind.unsqueeze(-1).expand(-1, -1, M))
+                        score_matrix = torch.clamp(1 - corr, min=0.0, max=None)
+                        affinity = -(score_matrix - self.softplus(self.alpha)) / (torch.exp(self.beta) + 0.02)
+                        T = compute_rigid_transform_with_sinkhorn(src_pts, tgt_xyz[i], affinity, self.cfg.slack,
+                                                                  self.cfg.sinkhorn_itr)
+
                     else:
                         # score_matrix = pairwise_distance(src_feats[i], tgt_feats[i])
                         # print(score_matrix.shape)
@@ -421,12 +452,12 @@ class RegTR(GenericRegModel):
                         # print(score_matrix.max())
                         # raise ValueError
 
-                        score_matrix = torch.matmul(src_feats[i], tgt_feats[i].permute(0, 2, 1)) / (D**0.5)
+                        score_matrix = torch.matmul(src_feats[i], tgt_feats[i].permute(0, 2, 1)) / (D ** 0.5)
                         score_matrix = torch.clamp(score_matrix, min=0.0, max=None)
-                        
-                        affinity = -(score_matrix - self.softplus(self.alpha))/(torch.exp(self.beta) + 0.02)
-                        T = compute_rigid_transform_with_sinkhorn(src_pts.unsqueeze(0), tgt_pts.unsqueeze(0), affinity, self.cfg.slack, self.cfg.sinkhorn_itr)
 
+                        affinity = -(score_matrix - self.softplus(self.alpha)) / (torch.exp(self.beta) + 0.02)
+                        T = compute_rigid_transform_with_sinkhorn(src_pts.unsqueeze(0), tgt_pts.unsqueeze(0), affinity,
+                                                                  self.cfg.slack, self.cfg.sinkhorn_itr)
 
                         # score_matrix = torch.clamp(1-correlation, min=0.0, max=None)
                         # affinity = -(score_matrix - self.softplus(self.alpha))/(torch.exp(self.beta) + 0.02)
@@ -437,15 +468,15 @@ class RegTR(GenericRegModel):
                     if self.cfg.use_overlap_as_weights:
                         T = compute_rigid_transform(src_pts, tgt_pts, weights=overlap_prob.squeeze())
                     else:
-                        T = compute_rigid_transform(src_pts, tgt_pts, weights=val.permute(1,0).squeeze())
+                        T = compute_rigid_transform(src_pts, tgt_pts, weights=val.permute(1, 0).squeeze())
                         # self.weight_matrix += list(val.permute(1,0).squeeze().cpu().numpy())
                         # T = compute_rigid_transform(src_pts, tgt_pts)
 
                 if self.cfg.use_lgr:
-                    T = self.local_global_registration(src_pts, tgt_pts, val.permute(1,0).squeeze(), T)
+                    T = self.local_global_registration(src_pts, tgt_pts, val.permute(1, 0).squeeze(), T)
 
                 if self.cfg.use_ransac:
-                    T = self.ransac(src_pts, tgt_pts, val.permute(1,0).squeeze())
+                    T = self.ransac(src_pts, tgt_pts, val.permute(1, 0).squeeze())
 
                 overlap_prob_list.append(val.squeeze())
                 ind_list.append(ind.squeeze())
@@ -459,25 +490,25 @@ class RegTR(GenericRegModel):
                     attn = attn_src * attn_tgt
                 else:
                     attn = torch.nn.functional.softmax(correlation, dim=-1)
-                
+
                 attn_list.append(attn)
 
                 if self.cfg.use_ratio_test:
                     ind, val = self.ratio_test(attn, dim=2)
                 else:
                     val, ind = torch.max(attn, dim=2)
-                
+
                 # Threshold the coorelation values?
                 if self.cfg.threshold_corr:
                     # val = torch.where(val>self.cfg.corr_threshold, val, 0)
-                    val = torch.where(val>torch.median(val), val, 0)
+                    val = torch.where(val > torch.median(val), val, 0)
 
                 src_pts = src_xyz[i]
                 if self.cfg.use_sinkhorn:
                     tgt_pts = tgt_xyz[i]
                 else:
                     try:
-                        tgt_pts = torch.gather(tgt_xyz[i], 0, ind.permute(1,0).expand(-1,3))  # [M, 3] -> [N, 3]
+                        tgt_pts = torch.gather(tgt_xyz[i], 0, ind.permute(1, 0).expand(-1, 3))  # [M, 3] -> [N, 3]
                     except:
                         print(f"tgt_xyz shape is: {tgt_xyz.shape}")
                         print(f"ind shape is: {ind.shape}")
@@ -486,7 +517,7 @@ class RegTR(GenericRegModel):
                 if self.cfg.remove_outliers_overlap:
                     src_overlap_prob = src_overlap_list[i].squeeze(2)
                     tgt_overlap_prob = tgt_overlap_list[i].squeeze(2)
-                   
+
                     tgt_overlap_prob = torch.gather(tgt_overlap_prob, 1, ind)
                     overlap_prob = src_overlap_prob * tgt_overlap_prob
 
@@ -500,57 +531,60 @@ class RegTR(GenericRegModel):
                 # print(f"new N is: {int(0.2*N)}")
                 # print(val.shape)
                 if self.cfg.remove_points_from_val:
-                    val, ind = torch.topk(val, int(self.cfg.val_threshold*N), dim=1)
-                    src_pts = torch.gather(src_pts, 0, ind.permute(1,0).expand(-1,3))
-                    tgt_pts = torch.gather(tgt_pts, 0, ind.permute(1,0).expand(-1,3))
+                    val, ind = torch.topk(val, int(self.cfg.val_threshold * N), dim=1)
+                    src_pts = torch.gather(src_pts, 0, ind.permute(1, 0).expand(-1, 3))
+                    tgt_pts = torch.gather(tgt_pts, 0, ind.permute(1, 0).expand(-1, 3))
 
                 # print(f"src_pts shape is: {src_pts.shape}")
                 # print(f"tgt_pts shape is: {tgt_pts.shape}")
                 # raise ValueError
-                
+
                 # Compute the transformation matrix
                 if self.cfg.use_sinkhorn:
-                    if self.cfg.use_attn_affinity: # Use attention matrix as the affinity matrix
+                    if self.cfg.use_attn_affinity:  # Use attention matrix as the affinity matrix
                         print(src_pts.shape)
                         print(src_xyz[i].shape)
                         print(tgt_pts.shape)
                         raise ValueError
-                        affinity = torch.gather(attn, 2, ind.unsqueeze(0).expand(-1,N,-1))
-                        T = compute_rigid_transform_with_sinkhorn(src_xyz[i], tgt_pts, affinity, self.cfg.slack, self.cfg.sinkhorn_itr)
+                        affinity = torch.gather(attn, 2, ind.unsqueeze(0).expand(-1, N, -1))
+                        T = compute_rigid_transform_with_sinkhorn(src_xyz[i], tgt_pts, affinity, self.cfg.slack,
+                                                                  self.cfg.sinkhorn_itr)
 
-                    elif self.cfg.use_corr_affinity: # Compute affinity matrix from the correlation matrix
+                    elif self.cfg.use_corr_affinity:  # Compute affinity matrix from the correlation matrix
                         # corr = torch.gather(correlation, 2, ind.unsqueeze(0).expand(-1,N,-1))
-                        score_matrix = torch.clamp(1-correlation, min=0.0, max=None)
-                        affinity = -(score_matrix - self.softplus(self.alpha))/(torch.exp(self.beta) + 0.02)
-                        T = compute_rigid_transform_with_sinkhorn(src_xyz[i], tgt_xyz[i], affinity, self.cfg.slack, self.cfg.sinkhorn_itr)
-                    
+                        score_matrix = torch.clamp(1 - correlation, min=0.0, max=None)
+                        affinity = -(score_matrix - self.softplus(self.alpha)) / (torch.exp(self.beta) + 0.02)
+                        T = compute_rigid_transform_with_sinkhorn(src_xyz[i], tgt_xyz[i], affinity, self.cfg.slack,
+                                                                  self.cfg.sinkhorn_itr)
+
                     else:
                         # score_matrix = pairwise_distance(src_feats[i], tgt_feats[i])
                         # print(score_matrix.shape)
                         # print(score_matrix.min())
                         # print(score_matrix.max())
                         # raise ValueError
-                        score_matrix = torch.matmul(src_feats[i], tgt_feats[i].permute(0, 2, 1)) / (D**0.5)
+                        score_matrix = torch.matmul(src_feats[i], tgt_feats[i].permute(0, 2, 1)) / (D ** 0.5)
                         score_matrix = torch.clamp(score_matrix, min=0.0, max=None)
 
                         # print(score_matrix.min())
                         # print(score_matrix.max())
-                        affinity = -(score_matrix - self.softplus(self.alpha))/(torch.exp(self.beta) + 0.02)
-                        T = compute_rigid_transform_with_sinkhorn(src_pts.unsqueeze(0), tgt_pts.unsqueeze(0), affinity,self.cfg.slack, self.cfg.sinkhorn_itr)
+                        affinity = -(score_matrix - self.softplus(self.alpha)) / (torch.exp(self.beta) + 0.02)
+                        T = compute_rigid_transform_with_sinkhorn(src_pts.unsqueeze(0), tgt_pts.unsqueeze(0), affinity,
+                                                                  self.cfg.slack, self.cfg.sinkhorn_itr)
 
                 else:
                     if self.cfg.use_overlap_as_weights:
                         T = compute_rigid_transform(src_pts, tgt_pts, weights=overlap_prob.squeeze())
                     else:
-                        T = compute_rigid_transform(src_pts, tgt_pts, weights=val.permute(1,0).squeeze())
+                        T = compute_rigid_transform(src_pts, tgt_pts, weights=val.permute(1, 0).squeeze())
                         # self.weight_matrix += list(val.permute(1,0).squeeze().cpu().numpy())
                         # T = compute_rigid_transform(src_pts, tgt_pts)
 
                 if self.cfg.use_lgr:
-                    T = self.local_global_registration(src_pts, tgt_pts, val.permute(1,0).squeeze(), T)
+                    T = self.local_global_registration(src_pts, tgt_pts, val.permute(1, 0).squeeze(), T)
 
                 if self.cfg.use_ransac:
-                    T = self.ransac(src_pts, tgt_pts, val.permute(1,0).squeeze())
+                    T = self.ransac(src_pts, tgt_pts, val.permute(1, 0).squeeze())
 
                 overlap_prob_list.append(val.squeeze())
                 ind_list.append(ind.squeeze())

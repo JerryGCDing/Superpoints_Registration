@@ -1,7 +1,8 @@
 from typing import Union, Tuple
 
 import numpy as np
-#import open3d as o3d
+import cv2
+import open3d as o3d
 from cvhelpers.open3d_helpers import to_o3d_pcd
 
 

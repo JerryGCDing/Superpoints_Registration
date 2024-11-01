@@ -11,7 +11,6 @@ class PTv3_Encoder(PointTransformerV3):
 
     def __init__(self, cfg, project_dim,
                  order=("z", "z-trans", "hilbert", "hilbert-trans"),
-                 enc_channels=(32, 64, 128, 256, 512),
                  upcast_attention=False,
                  upcast_softmax=False,
                  cls_mode=True,
@@ -53,7 +52,7 @@ class PTv3_Encoder(PointTransformerV3):
 
         self.project = nn.Identity()
         if project_dim:
-            self.project = nn.Linear(enc_channels[-1], project_dim, bias=True)
+            self.project = nn.Linear(cfg.enc_channels[-1], project_dim, bias=True)
 
     @classmethod
     def from_config(cls, cfg):

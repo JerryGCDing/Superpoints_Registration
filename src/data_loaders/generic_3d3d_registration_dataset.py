@@ -105,6 +105,7 @@ class Generic3D3DRegistrationDataset(Dataset):
 
         src_corr_indices, tgt_corr_indices = get_3d3d_correspondences_mutual(src_pcd, tgt_pcd, tgt2src_transform,
                                                                              self.matching_radius_3d)
+        src_corr_indices, tgt_corr_indices = self._trim_num_queries(src_corr_indices, tgt_corr_indices)
         if self.use_augmentation:
             src_pcd, src_aug = self._apply_small_augmentation(src_pcd)
             tgt_pcd, tgt_aug = self._apply_small_augmentation(tgt_pcd)

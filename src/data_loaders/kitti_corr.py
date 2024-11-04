@@ -93,8 +93,8 @@ if __name__ == '__main__':
     from array_ops import apply_transform
     from utils.visualization import draw_correspondences
 
-    kitti_demo = KittiDataset('./sample_data/kitti/', None, 'train', max_queries=100, use_augmentation=False,
-                              remove_ground=True)
+    kitti_demo = KittiDataset('./sample_data/kitti/', None, 'train', max_points=1000, max_queries=100,
+                              use_augmentation=False, remove_ground=False)
     src_pcd_idx = 0
     src_pcd = kitti_demo.load_pcd(f'./sample_data/kitti/sequences/velodyne/{src_pcd_idx:06d}.bin')
     tgt_pcd_idx = 50

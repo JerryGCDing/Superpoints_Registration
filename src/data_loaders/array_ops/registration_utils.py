@@ -91,6 +91,23 @@ def get_2d3d_correspondences_radius(
     return img_corr_pixels, pcd_corr_indices, pcd_corr_points[masks]
 
 
+def get_3d3d_correspondences_mutual(
+    src_pcd: ndarray,
+    tgt_pcd: ndarray,
+    transform: ndarray,
+    matching_radius_3d: float,
+) -> Tuple[ndarray, ndarray]:
+    tgt_pcd_aligned = apply_transform(tgt_pcd, transform)
+    src_corr_indices, tgt_corr_indices = mutual_select(src_pcd, tgt_pcd_aligned, mutual=True)
+    src_corr_points = src_pcd[src_corr_indices]
+    tgt_corr_points = tgt_pcd[tgt_corr_indices]
+    mask_3d = np.linalg.norm(src_corr_points - tgt_corr_points, axis=1) < matching_radius_3d
+    src_corr_indices = src_corr_indices[mask_3d]
+    tgt_corr_indices = tgt_corr_indices[mask_3d]
+    return src_corr_indices, tgt_corr_indices
+
+
+
 # Matching Utilities
 
 
@@ -141,29 +158,3 @@ def evaluate_correspondences(src_corr_points, tgt_corr_points, transform, positi
     )
 
     return {"overlap": overlap, "inlier_ratio": inlier_ratio, "distance": distance}
-
-
-def evaluate_sparse_correspondences(
-    src_length, tgt_length, src_corr_indices, tgt_corr_indices, gt_src_corr_indices, gt_tgt_corr_indices
-):
-    gt_corr_mat = np.zeros(shape=(src_length, tgt_length))
-    gt_corr_mat[gt_src_corr_indices, gt_tgt_corr_indices] = 1.0
-    num_gt_correspondences = gt_corr_mat.sum()
-
-    pred_corr_mat = np.zeros_like(gt_corr_mat)
-    pred_corr_mat[src_corr_indices, tgt_corr_indices] = 1.0
-    num_pred_correspondences = pred_corr_mat.sum()
-
-    pos_corr_mat = gt_corr_mat * pred_corr_mat
-    num_pos_correspondences = pos_corr_mat.sum()
-
-    precision = num_pos_correspondences / (num_pred_correspondences + 1e-12)
-    recall = num_pos_correspondences / (num_gt_correspondences + 1e-12)
-
-    pos_corr_mat = pos_corr_mat > 0
-    gt_corr_mat = gt_corr_mat > 0
-    src_hit_ratio = np.any(pos_corr_mat, axis=1).sum() / (np.any(gt_corr_mat, axis=1).sum() + 1e-12)
-    tgt_hit_ratio = np.any(pos_corr_mat, axis=0).sum() / (np.any(gt_corr_mat, axis=0).sum() + 1e-12)
-    hit_ratio = 0.5 * (src_hit_ratio + tgt_hit_ratio)
-
-    return {"precision": precision, "recall": recall, "hit_ratio": hit_ratio}

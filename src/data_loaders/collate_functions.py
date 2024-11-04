@@ -157,6 +157,8 @@ class PointCloudRegistrationCollateFn(Callable):
             collated_dict["tgt_grid"] = np.concatenate(collated_dict.pop("tgt_grid"), axis=0)
 
         collated_dict["batch_size"] = batch_size
+        pose = collated_dict.pop('pose')
+        collated_dict['pose'] = torch.stack(pose, dim=0)  # (B, 3, 4)
 
         # additional attributes
         # collated_dict["queries"] = queries

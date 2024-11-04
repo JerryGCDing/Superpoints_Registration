@@ -8,6 +8,7 @@ from .se3 import (
 from .registration_utils import (
     get_2d3d_correspondences_mutual,
     get_2d3d_correspondences_radius,
+    get_3d3d_correspondences_mutual,
 )
 from .point_cloud_utils import (
     normalize_points,

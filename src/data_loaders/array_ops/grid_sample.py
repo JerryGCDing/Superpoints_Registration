@@ -4,7 +4,7 @@ import numpy as np
 class GridSample(object):
     def __init__(
         self,
-        grid_size=0.05,
+        grid_size=0.02,
     ):
         self.grid_size = grid_size
 

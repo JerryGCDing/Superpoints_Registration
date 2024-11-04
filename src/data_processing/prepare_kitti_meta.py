@@ -5,7 +5,7 @@ import numpy as np
 
 from utils import dump_pickle
 
-def prepare_kitti_meta(kitti_dir, min_displacement=10, max_displacement=20):
+def prepare_kitti_meta(kitti_dir, min_displacement=10, max_displacement=50):
     kitti_dir = os.path.join(kitti_dir, 'dataset')
     seq_dir = os.path.join(kitti_dir, 'sequences')
     pose_dir = os.path.join(kitti_dir, 'pose')

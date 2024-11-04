@@ -1,2 +1,3 @@
 .idea/
 /src/data_loaders/sample_data/
+__pycache__/

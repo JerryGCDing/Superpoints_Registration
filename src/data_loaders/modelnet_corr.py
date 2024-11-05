@@ -44,6 +44,9 @@ class ModelNetDataset(Generic3D3DRegistrationDataset):
             pcd = np.asarray(h5['data'], dtype=np.float32)
         return pcd
 
+    def __len__(self):
+        return len(self.data_cache['pcd'])
+
     def __getitem__(self, index):
         src_pcd = self.data_cache['pcd'][index]
         tgt_pcd, transform = self._apply_small_augmentation(src_pcd.copy(), scale=0.5)

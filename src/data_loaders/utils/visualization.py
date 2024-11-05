@@ -87,14 +87,13 @@ def draw_straight_correspondences(
     tgt_coord: ndarray,
     offsets: Tuple[float, float, float] = (0.0, 2.0, 0.0),
 ):
-    src_points = src_points + np.asarray(offsets)[None, :]
     src_pcd = make_open3d_point_cloud(src_points)
     src_pcd.estimate_normals()
     src_pcd.paint_uniform_color(get_color("custom_yellow"))
-    tgt_pcd = make_open3d_point_cloud(tgt_points)
+    tgt_pcd = make_open3d_point_cloud(tgt_points + np.asarray(offsets))
     tgt_pcd.estimate_normals()
     tgt_pcd.paint_uniform_color(get_color("custom_blue"))
-    corr_lines = make_open3d_corr_lines(src_coord, tgt_coord, label="pos")
+    corr_lines = make_open3d_corr_lines(src_coord, tgt_coord + np.asarray(offsets), label="pos")
     axes = make_open3d_axes(scale=0.1)
     draw_geometries(src_pcd, tgt_pcd, corr_lines, axes)
 

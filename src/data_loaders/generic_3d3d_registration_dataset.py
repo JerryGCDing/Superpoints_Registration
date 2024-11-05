@@ -37,12 +37,10 @@ class Generic3D3DRegistrationDataset(Dataset):
         self.meta_data_list = None
         self.data_cache = {}
 
-        self.parse_meta_data(meta_data)
+        if meta_data is not None:
+            self.parse_meta_data(meta_data)
 
     def parse_meta_data(self, filepath) -> None:
-        if filepath is None:
-            return
-
         with open(filepath, 'rb') as f:
             data = pickle.load(f)
         self.meta_data_list = data
@@ -59,7 +57,7 @@ class Generic3D3DRegistrationDataset(Dataset):
         tgt_pose = np.vstack([tgt_pose, [0., 0., 0., 1.]])
 
         relative_trans = np.linalg.inv(src_pose) @ tgt_pose
-        return relative_trans[:3, :]
+        return relative_trans
 
     def _trim_num_queries(self, src_corr_indices, tgt_corr_indices):
         assert src_corr_indices.shape[0] == tgt_corr_indices.shape[0]
@@ -78,8 +76,8 @@ class Generic3D3DRegistrationDataset(Dataset):
     def __len__(self):
         return len(self.meta_data_list)
 
-    def _apply_small_augmentation(self, pcd):
-        aug_transform = random_sample_small_transform()
+    def _apply_small_augmentation(self, pcd, scale=0.3):
+        aug_transform = random_sample_small_transform(scale=scale)
         pcd_center = pcd.mean(axis=0)
         centralize = get_transform_from_rotation_translation(None, -pcd_center)
         decentralize = get_transform_from_rotation_translation(None, pcd_center)

@@ -10,6 +10,8 @@ from .array_ops import GridSample, get_3d3d_correspondences_mutual, random_sampl
 
 
 class Generic3D3DRegistrationDataset(Dataset):
+    # Note: if adding an argument to align the point clouds, don't forget to apply same transformation to target
+    # coordinates
     def __init__(self,
                  root: str,
                  meta_data: Union[str, None],
@@ -59,19 +61,19 @@ class Generic3D3DRegistrationDataset(Dataset):
         relative_trans = np.linalg.inv(src_pose) @ tgt_pose
         return relative_trans
 
-    def _trim_num_queries(self, src_corr_indices, tgt_corr_indices):
-        assert src_corr_indices.shape[0] == tgt_corr_indices.shape[0]
+    def _trim_num_queries(self, src_queries, tgt_targets):
+        assert src_queries.shape[0] == tgt_targets.shape[0]
         if self.max_queries is None:
-            return src_corr_indices, tgt_corr_indices
+            return src_queries, tgt_targets
 
-        length = src_corr_indices.shape[0]
+        length = src_queries.shape[0]
         if self.max_queries <= length:
             selected = np.random.choice(length, self.max_queries)
-            return src_corr_indices[selected], tgt_corr_indices[selected]
+            return src_queries[selected], tgt_targets[selected]
         else:
             selected = np.random.choice(length, self.max_queries - length)
-            return np.concatenate([src_corr_indices, src_corr_indices[selected]], axis=0), np.concatenate(
-                [tgt_corr_indices, tgt_corr_indices[selected]], axis=0)
+            return np.concatenate([src_queries, src_queries[selected]], axis=0), np.concatenate(
+                [tgt_targets, tgt_targets[selected]], axis=0)
 
     def __len__(self):
         return len(self.meta_data_list)
@@ -92,6 +94,10 @@ class Generic3D3DRegistrationDataset(Dataset):
             src_pcd = voxel_down_sample(src_pcd, self.downsample_voxel_size)
             tgt_pcd = voxel_down_sample(tgt_pcd, self.downsample_voxel_size)
 
+        queries, targets = get_3d3d_correspondences_mutual(src_pcd, tgt_pcd, tgt2src_transform,
+                                                           self.matching_radius_3d)
+        queries, targets = self._trim_num_queries(queries, targets)
+
         if self.max_points is not None:
             if src_pcd.shape[0] > self.max_points:
                 selected = np.random.choice(src_pcd.shape[0], self.max_points)
@@ -101,19 +107,16 @@ class Generic3D3DRegistrationDataset(Dataset):
                 selected = np.random.choice(tgt_pcd.shape[0], self.max_points)
                 tgt_pcd = tgt_pcd[selected]
 
-        src_corr_indices, tgt_corr_indices = get_3d3d_correspondences_mutual(src_pcd, tgt_pcd, tgt2src_transform,
-                                                                             self.matching_radius_3d)
-        src_corr_indices, tgt_corr_indices = self._trim_num_queries(src_corr_indices, tgt_corr_indices)
         if self.use_augmentation:
             src_pcd, src_aug = self._apply_small_augmentation(src_pcd)
+            queries = apply_transform(queries, src_aug)
             tgt_pcd, tgt_aug = self._apply_small_augmentation(tgt_pcd)
+            targets = apply_transform(targets, tgt_aug)
             tgt2src_transform = compose_transforms(inverse_transform(tgt_aug), tgt2src_transform, src_aug)
 
         if self.normalize_points:
             src_pcd = min_max_norm(src_pcd)
             tgt_pcd = min_max_norm(tgt_pcd)
-        queries = src_pcd[src_corr_indices]
-        targets = tgt_pcd[tgt_corr_indices]
         src_grid_sample = self.grid_sample(src_pcd)
         tgt_grid_sample = self.grid_sample(tgt_pcd)
 
@@ -122,10 +125,8 @@ class Generic3D3DRegistrationDataset(Dataset):
                      'tgt2src_transform': tgt2src_transform,
                      'queries': queries,
                      'norm_queries': min_max_norm(queries),
-                     'src_corr_indices': src_corr_indices,
                      'targets': targets,
                      'norm_targets': min_max_norm(targets),
-                     'tgt_corr_indices': tgt_corr_indices,
                      'src_grid_coord': src_grid_sample['grid_coord'],
                      'min_src_grid_coord': src_grid_sample['min_coord'],
                      'tgt_grid_coord': tgt_grid_sample['grid_coord'],

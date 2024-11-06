@@ -60,11 +60,11 @@ class ThreeDMatchDataset(Generic3D3DRegistrationDataset):
 if __name__ == '__main__':
     import pickle
     from array_ops import apply_transform
-    from utils.visualization import draw_correspondences
+    from utils.visualization import draw_straight_correspondences
 
     with open('../datasets/3dmatch/train_info.pkl', 'rb') as f:
         data = pickle.load(f)
-    threedmatch_demo = ThreeDMatchDataset('./sample_data/3dmatch/', None, max_points=None, max_queries=None,
+    threedmatch_demo = ThreeDMatchDataset('./sample_data/3dmatch/', None, max_points=1000, max_queries=None,
                                           use_augmentation=True)
     src_pcd = threedmatch_demo.load_pcd('./sample_data/3dmatch/cloud_bin_0.pth')
     src_pose = threedmatch_demo.load_pose('./sample_data/3dmatch/cloud_bin_0.info.txt')
@@ -72,8 +72,7 @@ if __name__ == '__main__':
     tgt_pose = threedmatch_demo.load_pose('./sample_data/3dmatch/cloud_bin_1.info.txt')
 
     tgt2src_transform = threedmatch_demo.get_relative_pose(src_pose, tgt_pose)
-    print(tgt2src_transform)
     data_dict = threedmatch_demo.construct_data_dict(src_pcd, tgt_pcd, tgt2src_transform)
 
-    draw_correspondences(data_dict['src_pcd'], apply_transform(data_dict['tgt_pcd'], data_dict['tgt2src_transform']),
-                         data_dict['src_corr_indices'], data_dict['tgt_corr_indices'], offsets=(0., 2., 0.))
+    draw_straight_correspondences(data_dict['src_pcd'], data_dict['tgt_pcd'], data_dict['queries'],
+                                  data_dict['targets'], offsets=(0., 2., 0.))

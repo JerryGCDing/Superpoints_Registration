@@ -59,12 +59,9 @@ class ModelNetDataset(Generic3D3DRegistrationDataset):
             src_selected[np.random.choice(src_pcd.shape[0], self.max_points)] = 1
             tgt_selected = np.zeros(tgt_pcd.shape[0], dtype=bool)
             tgt_selected[np.random.choice(tgt_pcd.shape[0], self.max_points)] = 1
-            mutual_selected = src_selected & tgt_selected
 
             src_pcd = src_pcd[src_selected]
             tgt_pcd = tgt_pcd[tgt_selected]
-            queries = queries[mutual_selected]
-            targets = targets[mutual_selected]
 
         queries, targets = self._trim_num_queries(queries, targets)
 
@@ -105,12 +102,9 @@ if __name__ == '__main__':
         src_selected[np.random.choice(src_pcd.shape[0], modelnet_demo.max_points)] = 1
         tgt_selected = np.zeros(tgt_pcd.shape[0], dtype=bool)
         tgt_selected[np.random.choice(tgt_pcd.shape[0], modelnet_demo.max_points)] = 1
-        mutual_selected = src_selected & tgt_selected
 
         src_pcd = src_pcd[src_selected]
         tgt_pcd = tgt_pcd[tgt_selected]
-        queries = queries[mutual_selected]
-        targets = targets[mutual_selected]
 
     queries, targets = modelnet_demo._trim_num_queries(queries, targets)
     tgt_pcd = apply_transform(tgt_pcd, tgt2src_transform)

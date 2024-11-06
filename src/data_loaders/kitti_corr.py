@@ -91,10 +91,10 @@ class KittiDataset(Generic3D3DRegistrationDataset):
 
 if __name__ == '__main__':
     from array_ops import apply_transform
-    from utils.visualization import draw_correspondences
+    from utils.visualization import draw_straight_correspondences
 
-    kitti_demo = KittiDataset('./sample_data/kitti/', None, 'train', max_points=None, max_queries=100,
-                              use_augmentation=True, remove_ground=False)
+    kitti_demo = KittiDataset('./sample_data/kitti/', None, 'train', max_points=2000, max_queries=None,
+                              use_augmentation=False, remove_ground=False)
     src_pcd_idx = 0
     src_pcd = kitti_demo.load_pcd(f'./sample_data/kitti/sequences/velodyne/{src_pcd_idx:06d}.bin')
     tgt_pcd_idx = 50
@@ -119,5 +119,5 @@ if __name__ == '__main__':
     # draw_geometries(src_pcd_viz, tgt_pcd_viz)
 
     tgt_pcd_align = apply_transform(data_dict['tgt_pcd'], data_dict['tgt2src_transform'])
-    draw_correspondences(data_dict['src_pcd'], tgt_pcd_align, data_dict['src_corr_indices'],
-                         data_dict['tgt_corr_indices'], offsets=(0., 20., 0.))
+    draw_straight_correspondences(data_dict['src_pcd'], tgt_pcd_align, data_dict['queries'],
+                                  data_dict['targets'], offsets=(0., 20., 0.))

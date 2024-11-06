@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 
 import numpy as np
 from numpy import ndarray
@@ -96,7 +96,8 @@ def get_3d3d_correspondences_mutual(
     tgt_pcd: ndarray,
     transform: ndarray,
     matching_radius_3d: Optional[float],
-) -> Tuple[ndarray, ndarray]:
+    return_indices: bool = False,
+) -> Union[Tuple[ndarray, ndarray], Tuple[ndarray, ndarray, ndarray, ndarray]]:
     tgt_pcd_aligned = apply_transform(tgt_pcd, transform)
     src_corr_indices, tgt_corr_indices = mutual_select(src_pcd, tgt_pcd_aligned, mutual=True)
     src_corr_points = src_pcd[src_corr_indices]
@@ -105,7 +106,11 @@ def get_3d3d_correspondences_mutual(
         mask_3d = np.linalg.norm(src_corr_points - tgt_corr_points, axis=-1) < matching_radius_3d
         src_corr_indices = src_corr_indices[mask_3d]
         tgt_corr_indices = tgt_corr_indices[mask_3d]
-    return src_corr_indices, tgt_corr_indices
+
+    if return_indices:
+        return src_pcd[src_corr_indices], tgt_pcd[tgt_corr_indices], src_corr_indices, tgt_corr_indices
+    else:
+        return src_pcd[src_corr_indices], tgt_pcd[tgt_corr_indices]
 
 
 

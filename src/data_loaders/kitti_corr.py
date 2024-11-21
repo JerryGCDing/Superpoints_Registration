@@ -6,7 +6,7 @@ import numpy as np
 from .generic_3d3d_registration_dataset import Generic3D3DRegistrationDataset
 
 
-class KittiDataset(Generic3D3DRegistrationDataset):
+class KITTIDataset(Generic3D3DRegistrationDataset):
     DATA_SPLITS = {
         'train': slice(0, 8),
         'val': slice(8, 11)
@@ -23,6 +23,7 @@ class KittiDataset(Generic3D3DRegistrationDataset):
                  matching_radius_3d: Optional[float] = None,
                  use_augmentation: bool = True,
                  normalize_points: bool = False,
+                 bidirectional: bool = False,
                  remove_ground: bool = False):
         super().__init__(root,
                          meta_data,
@@ -32,7 +33,8 @@ class KittiDataset(Generic3D3DRegistrationDataset):
                          downsample_voxel_size,
                          matching_radius_3d,
                          use_augmentation,
-                         normalize_points)
+                         normalize_points,
+                         bidirectional)
         assert split in ('train', 'val', 'test')
         self.root = os.path.join(self.root, 'dataset')
         self.remove_ground = remove_ground
@@ -93,7 +95,7 @@ if __name__ == '__main__':
     from array_ops import apply_transform
     from utils.visualization import draw_straight_correspondences
 
-    kitti_demo = KittiDataset('./sample_data/kitti/', None, 'train', max_points=2000, max_queries=None,
+    kitti_demo = KITTIDataset('./sample_data/kitti/', None, 'train', max_points=2000, max_queries=None,
                               use_augmentation=False, remove_ground=False)
     src_pcd_idx = 0
     src_pcd = kitti_demo.load_pcd(f'./sample_data/kitti/sequences/velodyne/{src_pcd_idx:06d}.bin')

@@ -19,7 +19,8 @@ class ModelNetDataset(Generic3D3DRegistrationDataset):
                  downsample_voxel_size: Optional[float] = None,
                  matching_radius_3d: Optional[float] = 0.0375,
                  use_augmentation: bool = True,
-                 normalize_points: bool = False):
+                 normalize_points: bool = False,
+                 bidirectional: bool = False):
         super().__init__(root,
                          meta_data,
                          max_points,
@@ -28,7 +29,8 @@ class ModelNetDataset(Generic3D3DRegistrationDataset):
                          downsample_voxel_size,
                          matching_radius_3d,
                          use_augmentation,
-                         normalize_points)
+                         normalize_points,
+                         bidirectional)
 
     def parse_meta_data(self, filepath) -> None:
         with open(filepath, 'r') as f:
@@ -36,7 +38,7 @@ class ModelNetDataset(Generic3D3DRegistrationDataset):
 
         pcd_data = []
         for file in files:
-            pcd_data.append(self.load_pcd(os.path.join(self.root, file)))
+            pcd_data.append(self.load_pcd(os.path.join(self.root, file.rstrip())))
         self.data_cache['pcd'] = [sample for sample in np.concatenate(pcd_data, axis=0)]
 
     def load_pcd(self, filepath) -> np.ndarray:
@@ -71,17 +73,27 @@ class ModelNetDataset(Generic3D3DRegistrationDataset):
         src_grid_sample = self.grid_sample(src_pcd)
         tgt_grid_sample = self.grid_sample(tgt_pcd)
 
-        data_dict = {'src_pcd': src_pcd,
-                     'tgt_pcd': tgt_pcd,
+        queries = queries.astype(np.float32)
+        targets = targets.astype(np.float32)
+        norm_queries = min_max_norm(queries).astype(np.float32)
+        norm_targets = min_max_norm(targets).astype(np.float32)
+        data_dict = {'src_pcd': src_pcd.astype(np.float32),
+                     'tgt_pcd': tgt_pcd.astype(np.float32),
                      'tgt2src_transform': tgt2src_transform,
                      'queries': queries,
-                     'norm_queries': min_max_norm(queries),
+                     'norm_queries': norm_queries,
                      'targets': targets,
-                     'norm_targets': min_max_norm(targets),
+                     'norm_targets': norm_targets,
                      'src_grid_coord': src_grid_sample['grid_coord'],
                      'min_src_grid_coord': src_grid_sample['min_coord'],
                      'tgt_grid_coord': tgt_grid_sample['grid_coord'],
                      'min_tgt_grid_coord': tgt_grid_sample['min_coord']}
+
+        if self.bidirectional:
+            data_dict['queries'] = np.concatenate([queries, targets], axis=0)
+            data_dict['targets'] = np.concatenate([targets, queries], axis=0)
+            data_dict['norm_queries'] = np.concatenate([norm_queries, norm_targets], axis=0)
+            data_dict['norm_targets'] = np.concatenate([norm_targets, norm_queries], axis=0)
 
         return data_dict
 

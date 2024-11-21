@@ -17,7 +17,8 @@ class ThreeDMatchDataset(Generic3D3DRegistrationDataset):
                  downsample_voxel_size: Optional[float] = None,
                  matching_radius_3d: Optional[float] = 1,
                  use_augmentation: bool = True,
-                 normalize_points: bool = False):
+                 normalize_points: bool = False,
+                 bidirectional: bool = False):
         super().__init__(root,
                          meta_data,
                          max_points,
@@ -26,7 +27,8 @@ class ThreeDMatchDataset(Generic3D3DRegistrationDataset):
                          downsample_voxel_size,
                          matching_radius_3d,
                          use_augmentation,
-                         normalize_points)
+                         normalize_points,
+                         bidirectional)
 
     def load_pcd(self, filepath) -> np.ndarray:
         pcd = torch.load(filepath)

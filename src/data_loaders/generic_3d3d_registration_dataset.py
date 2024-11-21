@@ -23,7 +23,8 @@ class Generic3D3DRegistrationDataset(Dataset):
                  # scene_name: Optional[str] = None,
                  use_augmentation: bool = True,
                  augmentation_noise: float = 0.005,
-                 normalize_points: bool = False):
+                 normalize_points: bool = False,
+                 bidirectional: bool = False):
         super().__init__()
         self.downsample_voxel_size = downsample_voxel_size
         self.grid_sample = GridSample(grid_size)
@@ -34,6 +35,7 @@ class Generic3D3DRegistrationDataset(Dataset):
         self.use_augmentation = use_augmentation
         self.aug_noise = augmentation_noise
         self.normalize_points = normalize_points
+        self.bidirectional = bidirectional
 
         # Placeholder
         self.meta_data_list = None
@@ -120,17 +122,27 @@ class Generic3D3DRegistrationDataset(Dataset):
         src_grid_sample = self.grid_sample(src_pcd)
         tgt_grid_sample = self.grid_sample(tgt_pcd)
 
-        data_dict = {'src_pcd': src_pcd,
-                     'tgt_pcd': tgt_pcd,
+        queries = queries.astype(np.float32)
+        targets = targets.astype(np.float32)
+        norm_queries = min_max_norm(queries).astype(np.float32)
+        norm_targets = min_max_norm(targets).astype(np.float32)
+        data_dict = {'src_pcd': src_pcd.astype(np.float32),
+                     'tgt_pcd': tgt_pcd.astype(np.float32),
                      'tgt2src_transform': tgt2src_transform,
                      'queries': queries,
-                     'norm_queries': min_max_norm(queries),
+                     'norm_queries': norm_queries,
                      'targets': targets,
-                     'norm_targets': min_max_norm(targets),
+                     'norm_targets': norm_targets,
                      'src_grid_coord': src_grid_sample['grid_coord'],
                      'min_src_grid_coord': src_grid_sample['min_coord'],
                      'tgt_grid_coord': tgt_grid_sample['grid_coord'],
                      'min_tgt_grid_coord': tgt_grid_sample['min_coord']}
+
+        if self.bidirectional:
+            data_dict['queries'] = np.concatenate([queries, targets], axis=0)
+            data_dict['targets'] = np.concatenate([targets, queries], axis=0)
+            data_dict['norm_queries'] = np.concatenate([norm_queries, norm_targets], axis=0)
+            data_dict['norm_targets'] = np.concatenate([norm_targets, norm_queries], axis=0)
 
         return data_dict
 

@@ -51,6 +51,8 @@ pointformer_options:
     shuffle_orders: True
     enable_rpe: False
     enable_flash: False
+decoder_options:
+
 
 lgr:
     use_lgr: False
@@ -107,28 +109,12 @@ model:
 
 
 losses:
-    # Inlier Loss
-    inlier_loss_on: False
-
-    # Overlap loss
-    wt_overlap: 1.0
-    overlap_loss_pyr: 3
-    overlap_loss_on: [5]  # Apply loss on only final output
-
-    # Feature loss - I use the following thresholds
-    # Voxel sizes at different octaves: (0) 0.06, (1) 0.12
-    # r_p and r_n are set to 1x and 2.0x the voxel sizes respectively
-    wt_feature: 0.1
-    wt_feature_un: 0.0
-    r_p: 0.12
-    r_n: 0.24
-    feature_loss_on: [0]
-    feature_loss_type: infonce
-
-    # Correspondence loss
-    wt_corr: 1.0
-    corr_loss_on: [5]
-
+    feature_loss: False
+    reg_loss: l1
+    mode: exp
+    alpha: 0.2
+    vmax: inf
+    vmin: 1
 
 validation:
     # Registration success criteria. We use this to pick the best checkpoint

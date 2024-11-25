@@ -303,16 +303,16 @@ class Trainer:
 
             synchronize()
             log_str = ['Validation ended:']
-            log_str.append(metrics_to_string(val_outputs['losses'], '[Losses]'))
+            log_str.append(metrics_to_string(val_outputs, '[Losses]'))
             log_str = '\n'.join(log_str)
             self.logger.info(log_str)
 
         if save_ckpt and rank==0:
             if num_gpus > 1:
-                self.saver.save(model.module, step, val_outputs['total'],
+                self.saver.save(model.module, step, val_outputs['total'].cpu(),
                                 optimizer=model.module.optimizer, scheduler=model.module.scheduler)
             else:
-                self.saver.save(model, step, val_outputs['total'],
+                self.saver.save(model, step, val_outputs['total'].cpu(),
                             optimizer=model.optimizer, scheduler=model.scheduler)
 
         model.train()

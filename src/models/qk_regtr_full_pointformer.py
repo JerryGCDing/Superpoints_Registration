@@ -222,7 +222,6 @@ class RegTR(GenericRegModel):
             loss = F.smooth_l1_loss(norm_corr, norm_targets, reduction="none").sum(dim=2, keepdim=True)
         else:
             raise ValueError(f"Unsupported {self.cfg.reg_loss}. ")
-        loss_details['regression'] = loss
 
         conf = pred['conf_info']
         vmin = float(self.cfg.vmin)
@@ -236,7 +235,10 @@ class RegTR(GenericRegModel):
 
         log_conf = torch.log(conf)
         conf_loss = loss * conf - self.cfg.alpha * log_conf
-        loss_details['confidence_loss'] = conf_loss
+        loss_details = {
+            self.cfg.reg_loss + 'regression': loss.mean() if conf_loss.numel() > 0 else 0,
+            'confidence_loss': log_conf.mean() if conf_loss.numel() > 0 else 0
+        }
         total_loss += conf_loss.mean() if conf_loss.numel() > 0 else 0
         loss_details['total'] = total_loss
 

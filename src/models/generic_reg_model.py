@@ -104,7 +104,7 @@ class GenericRegModel(GenericModel, ABC):
         return losses
 
     def validation_epoch_end(self, validation_step_outputs):
-        loss_keys = set(validation_step_outputs.keys())
+        loss_keys = set(validation_step_outputs[0].keys())
         losses_stacked = {k: torch.stack([l[k] for l in validation_step_outputs]) for k in loss_keys}
 
         # Computes the mean over all metrics

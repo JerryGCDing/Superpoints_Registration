@@ -1,59 +1,58 @@
 import torch
 
 import data_loaders.transforms
-import data_loaders.modelnet as modelnet
-from data_loaders.collate_functions import collate_pair, collate_tensors, PointCloudRegistrationCollateFn  # , collate_sparse_tensors
-from data_loaders.threedmatch import ThreeDMatchDataset
-from data_loaders.kitti_pred import KittiDataset
+from data_loaders.collate_functions import collate_pair, collate_tensors, \
+    PointCloudRegistrationCollateFn
+from .modelnet_corr import ModelNetDataset
+from .threedmatch_corr import ThreeDMatchDataset
+from .kitti_corr import KITTIDataset
 from torch.utils.data.distributed import DistributedSampler
 
 import torchvision
 
 
-def get_dataloader(cfg, phase, num_workers=0, num_gpus=1):
-    assert phase in ['train', 'val', 'test']
-
+def get_dataloader(cfg, stage, num_workers=0, num_gpus=1):
+    assert stage in ('train', 'val')
     if cfg.dataset == '3dmatch':
-        if phase == 'train':
-            # Apply training data augmentation (Pose perturbation and jittering)
-            transforms_aug = torchvision.transforms.Compose([
-                data_loaders.transforms.RigidPerturb(perturb_mode=cfg.perturb_pose),
-                data_loaders.transforms.Jitter(scale=cfg.augment_noise),
-                data_loaders.transforms.ShufflePoints(),
-                data_loaders.transforms.RandomSwap(),
-            ])
-        else:
-            transforms_aug = None
-
-        dataset = ThreeDMatchDataset(
-            cfg=cfg,
-            phase=phase,
-            transforms=transforms_aug,
-        )
+        dataset = ThreeDMatchDataset(root=cfg.root,
+                                     meta_data=cfg[f'{stage}_meta_data'],
+                                     max_points=cfg.max_points,
+                                     max_queries=cfg.max_queries,
+                                     grid_size=cfg.grid_size,
+                                     downsample_voxel_size=cfg.downsample_voxel_size,
+                                     matching_radius_3d=cfg.matching_radius_3d,
+                                     use_augmentation=cfg.use_augmentation,
+                                     normalize_points=cfg.normalize_points,
+                                     bidirectional=cfg.bidirectional)
 
     elif cfg.dataset == 'modelnet':
-        if phase == 'train':
-            dataset = modelnet.get_train_datasets(cfg)[0]
-        elif phase == 'val':
-            dataset = modelnet.get_train_datasets(cfg)[1]
-        elif phase == 'test':
-            dataset = modelnet.get_test_datasets(cfg)
+        dataset = ModelNetDataset(root=cfg.root,
+                                  meta_data=cfg[f'{stage}_meta_data'],
+                                  max_points=cfg.max_points,
+                                  max_queries=cfg.max_queries,
+                                  grid_size=cfg.grid_size,
+                                  downsample_voxel_size=cfg.downsample_voxel_size,
+                                  matching_radius_3d=cfg.matching_radius_3d,
+                                  use_augmentation=cfg.use_augmentation,
+                                  normalize_points=cfg.normalize_points,
+                                  bidirectional=cfg.bidirectional)
 
     elif cfg.dataset == "kitti":
-        if phase == 'train':
-            # Apply training data augmentation (Pose perturbation and jittering)
-            transforms_aug = torchvision.transforms.Compose([
-                data_loaders.transforms.RigidPerturb(perturb_mode=cfg.perturb_pose),
-                data_loaders.transforms.Jitter(scale=cfg.augment_noise),
-                data_loaders.transforms.ShufflePoints(),
-                data_loaders.transforms.RandomSwap(),
-            ])
-        else:
-            transforms_aug = None
-        dataset = KittiDataset(config=cfg, phase=phase, transforms=transforms_aug)
+        dataset = KITTIDataset(root=cfg.root,
+                               meta_data=cfg.meta_data,
+                               split=cfg.split,
+                               max_points=cfg.max_points,
+                               max_queries=cfg.max_queries,
+                               grid_size=cfg.grid_size,
+                               downsample_voxel_size=cfg.downsample_voxel_size,
+                               matching_radius_3d=cfg.matching_radius_3d,
+                               use_augmentation=cfg.use_augmentation,
+                               normalize_points=cfg.normalize_points,
+                               bidirectional=cfg.bidirectional,
+                               remove_ground=cfg.remove_ground)
 
     else:
-        raise AssertionError('Invalid dataset')
+        raise NotImplementedError
 
     # # For calibrating the number of neighbors (set in config file)
     # from models.backbone_kpconv.kpconv import calibrate_neighbors
@@ -61,9 +60,8 @@ def get_dataloader(cfg, phase, num_workers=0, num_gpus=1):
     # print(f"Neighborhood limits: {neighborhood_limits}")
     # raise ValueError
 
-    batch_size = cfg[f'{phase}_batch_size']
-    shuffle = phase == 'train'
-    shuffle = False
+    batch_size = cfg[f'{stage}_batch_size']
+    shuffle = stage == 'train'
 
     collate_fn = PointCloudRegistrationCollateFn()
     if cfg.model in ["regtr.RegTR", "qk_regtr.RegTR", "qk_regtr_old.RegTR", "qk_regtr_overlap.RegTR",
@@ -73,7 +71,6 @@ def get_dataloader(cfg, phase, num_workers=0, num_gpus=1):
             batch_size=batch_size,
             shuffle=shuffle if num_gpus == 1 else False,
             num_workers=num_workers,
-            # collate_fn=collate_pair,
             collate_fn=collate_fn,
             sampler=torch.utils.data.distributed.DistributedSampler(dataset) if num_gpus > 1 else None
         )
@@ -88,14 +85,5 @@ def get_dataloader(cfg, phase, num_workers=0, num_gpus=1):
         )
     else:
         raise NotImplementedError
-    # elif cfg.model in ["qk_mink.RegTR", "qk_mink_2.RegTR", "qk_mink_3.RegTR", "qk_mink_4.RegTR"]:
-    #     data_loader = torch.utils.data.DataLoader(
-    #         dataset,
-    #         batch_size=batch_size,
-    #         shuffle=shuffle if num_gpus == 1 else False,
-    #         num_workers=num_workers,
-    #         collate_fn=collate_sparse_tensors,
-    #         sampler=torch.utils.data.distributed.DistributedSampler(dataset) if num_gpus > 1 else None
-    #     )
 
     return data_loader

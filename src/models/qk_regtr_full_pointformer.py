@@ -231,8 +231,9 @@ class RegTR(GenericRegModel):
         conf_loss = loss * conf - self.alpha * log_conf
         loss_details['confidence_loss'] = conf_loss
         total_loss += conf_loss.mean() if conf_loss.numel() > 0 else 0
+        loss_details['total'] = total_loss
 
-        return total_loss, loss_details
+        return loss_details
 
     def recompute_weights(self, src_points, tgt_points, weights, pose):
         src_points_tf = se3_transform(pose, src_points)

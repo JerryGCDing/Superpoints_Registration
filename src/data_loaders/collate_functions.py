@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data.dataloader import default_collate
-from typing import Sequence, Mapping, List, Callable
+from typing import Sequence, Mapping, List, Callable, Optional
 # import MinkowskiEngine as ME
 import numpy as np
 from itertools import chain
@@ -128,43 +128,37 @@ def collate_tensors(list_data):
 
 
 class PointCloudRegistrationCollateFn(Callable):
-    def __call__(self, data_dicts: List[dict]):
+    def __init__(self,
+                 batch_keys: Optional[Sequence[str]] = None):
+        self.batch_keys = batch_keys
+
+    def __call__(self,
+                 data_dicts: List[dict]):
         batch_size = len(data_dicts)
 
         # 1. collate dict
         collated_dict = collate_dict(data_dicts)
 
-        # additional attributes
-        # queries = np.stack(collated_dict.pop("queries"), axis=0)
-        # targets = np.stack(collated_dict.pop("targets"), axis=0)
-        # norm_queries = np.stack(collated_dict.pop("norm_queries"), axis=0)
-        # norm_targets = np.stack(collated_dict.pop("norm_targets"), axis=0)
-
         if batch_size == 1:
             collated_dict = {key: value[0] for key, value in collated_dict.items()}
-            collated_dict["src_length"] = np.asarray([collated_dict["src_points"].shape[0]])
-            collated_dict["tgt_length"] = np.asarray([collated_dict["tgt_points"].shape[0]])
+            collated_dict["src_length"] = np.asarray([collated_dict["src_pcd"].shape[0]])
+            collated_dict["tgt_length"] = np.asarray([collated_dict["tgt_pcd"].shape[0]])
         else:
-            src_points_list = collated_dict.pop("src_points")
-            tgt_points_list = collated_dict.pop("tgt_points")
-            collated_dict["src_points"] = np.concatenate(src_points_list, axis=0)
-            collated_dict["tgt_points"] = np.concatenate(tgt_points_list, axis=0)
+            src_points_list = collated_dict.pop("src_pcd")
+            tgt_points_list = collated_dict.pop("tgt_pcd")
+            collated_dict["src_pcd"] = np.concatenate(src_points_list, axis=0)
+            collated_dict["tgt_pcd"] = np.concatenate(tgt_points_list, axis=0)
             collated_dict["src_length"] = np.asarray([points.shape[0] for points in src_points_list])
             collated_dict["tgt_length"] = np.asarray([points.shape[0] for points in tgt_points_list])
 
             # additional attributes
-            collated_dict["src_grid"] = np.concatenate(collated_dict.pop("src_grid"), axis=0)
-            collated_dict["tgt_grid"] = np.concatenate(collated_dict.pop("tgt_grid"), axis=0)
+            collated_dict["src_grid_coord"] = np.concatenate(collated_dict.pop("src_grid_coord"), axis=0)
+            collated_dict["tgt_grid_coord"] = np.concatenate(collated_dict.pop("tgt_grid_coord"), axis=0)
 
         collated_dict["batch_size"] = batch_size
-        pose = collated_dict.pop('pose')
-        collated_dict['pose'] = torch.stack(pose, dim=0)  # (B, 3, 4)
-
-        # additional attributes
-        # collated_dict["queries"] = queries
-        # collated_dict["targets"] = targets
-        # collated_dict["norm_queries"] = norm_queries
-        # collated_dict["norm_targets"] = norm_targets
+        if self.batch_keys is not None:
+            for key in self.batch_keys:
+                collated_dict[key] = np.stack(collated_dict.pop(key), axis=0)
 
         # 4. array to tensor
         collated_dict = array_to_tensor(collated_dict)

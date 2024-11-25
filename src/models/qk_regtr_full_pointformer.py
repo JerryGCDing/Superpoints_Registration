@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from functools import partial
+
 from .backbone_pointformer.pointformer_encoder import PTv3_Encoder
 from .generic_reg_model import GenericRegModel
 from .losses.corr_loss import CorrCriterion
@@ -31,6 +33,9 @@ def offset2lengths(offsets):
     lengths = torch.cat([offsets[:1], offsets[1:] - offsets[:-1]])
     return lengths
 
+def concat_batch(batch):
+    sample = torch.concat([_.squeeze(0) for _ in batch], dim=0)
+    return sample
 
 def compute_overlaps(batch):
     """Compute groundtruth overlap for each point+level. Note that this is a
@@ -109,7 +114,7 @@ class RegTR(GenericRegModel):
                 num_heads=cfg.num_heads,
                 mlp_ratio=cfg.mlp_ratio,
                 qkv_bias=cfg.qkv_bias,
-                norm_layer=cfg.norm_layer,
+                norm_layer=partial(nn.LayerNorm, eps=1e-6),
                 norm_mem=cfg.norm_mem,
                 rope=cfg.rope,
                 drop=cfg.proj_drop,
@@ -120,21 +125,21 @@ class RegTR(GenericRegModel):
             ) for i in range(cfg.depth)])
         self.dec_norm = nn.LayerNorm(cfg.d_embed, eps=1e-6)
 
-        self.corr_embed_3d = Mlp(self.project_dim, hidden_features=self.project_dim, out_features=4)
+        self.corr_embed_3d = Mlp(cfg.project_dim, hidden_features=cfg.project_dim, out_features=4)
 
     def forward(self, batch):
         src_pcd = {
-            "feat": batch["src_points"],
-            "coord": batch["src_points"],
-            "grid_coord": batch["src_grid"].int(),
-            "offset": torch.cumsum(batch["src_length"], dim=0).to(batch["src_points"].device)
+            "feat": batch["src_pcd"],
+            "coord": batch["src_pcd"],
+            "grid_coord": batch["src_grid_coord"].int(),
+            "offset": torch.cumsum(batch["src_length"], dim=0).to(batch["src_pcd"].device)
         }
 
         tgt_pcd = {
-            "feat": batch["tgt_points"],
-            "coord": batch["tgt_points"],
-            "grid_coord": batch["tgt_grid"].int(),
-            "offset": torch.cumsum(batch["tgt_length"], dim=0).to(batch["tgt_points"].device)
+            "feat": batch["tgt_pcd"],
+            "coord": batch["tgt_pcd"],
+            "grid_coord": batch["tgt_grid_coord"].int(),
+            "offset": torch.cumsum(batch["tgt_length"], dim=0).to(batch["tgt_pcd"].device)
         }
 
         ####################
@@ -171,17 +176,19 @@ class RegTR(GenericRegModel):
         )
         # CHECK FORMAT
         src_feats_cond_unpad = unpad_sequences(src_feats_cond, src_lens)
+        src_feats_cond = concat_batch(src_feats_cond_unpad)
         tgt_feats_cond_unpad = unpad_sequences(tgt_feats_cond, tgt_lens)
+        tgt_feats_cond = concat_batch(tgt_feats_cond_unpad)
 
         ###########################
         # Correspondence Prediction
         ###########################
         queries = batch['queries']
         _b, _q, _ = queries.shape
-        q = torch.zeros(_b, _q, self.project_dim).to(src_feat.device)
+        q = torch.zeros(_b, _q, self.cfg.project_dim).to(src_feats_cond.device)
 
         for block in self.dec_query_blocks:
-            q = block.forward_pcd_to_img(q, tgt_feats_cond_unpad, src_feat, None, queries)
+            q = block.forward_pcd_to_img(q, tgt_feats_cond, src_feat, None, queries)
         q = self.dec_norm(q)
         output = self.corr_embed_3d(q)
         corr = output[..., :3]
@@ -189,8 +196,8 @@ class RegTR(GenericRegModel):
 
         outputs = {
             # Predictions
-            'src_feat': src_feats_cond_unpad,  # List(B) of (N_pred, N_src, D)
-            'tgt_feat': tgt_feats_cond_unpad,  # List(B) of (N_pred, N_tgt, D)
+            'src_feat': src_feats_cond,  # List(B) of (N_pred, N_src, D)
+            'tgt_feat': tgt_feats_cond,  # List(B) of (N_pred, N_tgt, D)
 
             'norm_corr': corr,
             'conf_info': info,

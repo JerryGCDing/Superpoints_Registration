@@ -62,7 +62,7 @@ if __name__ == '__main__':
         torch.cuda.set_device(opt.local_rank)
         init_process_group(backend="nccl", init_method='env://')
         synchronize()
-    print('init ddp done')
+        print('init ddp done')
 
     # Override config if --resume is passed
     if opt.config is None:

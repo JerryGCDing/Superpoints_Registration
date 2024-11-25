@@ -2,6 +2,8 @@ general:
     expt_name: qk_regtr_full_4_layer
 
 dataset:
+    train_batch_size: 48
+    val_batch_size: 4
     dataset: modelnet
     root: "/home/jerrydty/Uni-corr/Superpoints_Registration/data/modelnet40_ply_hdf5_2048"
     train_meta_data: "/home/jerrydty/Uni-corr/Superpoints_Registration/data/metadata/modelnet_train_files.txt"
@@ -37,6 +39,7 @@ pointformer_options:
     enc_patch_size: [ 1024, 1024, 1024, 1024, 1024 ]
     project_dim: 1024
     mlp_ratio: 4
+    point_order: ["z", "z-trans", "hilbert", "hilbert-trans"]
     qkv_bias: True
     qk_scale: None
     attn_drop: 0.0
@@ -56,10 +59,11 @@ decoder_options:
     point_patch_size: 1024
     mlp_ratio: 4
     qkv_bias: True
-    norm_img2: True
+    norm_mem: True
+    rope: null
     attn_drop: 0.0
     proj_drop: 0.0
-    drop_path: 0.
+    drop_path: 0.3
     query_pos_embed_3d: "coords_sine"
     use_flash_attn: False
 

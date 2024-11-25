@@ -63,7 +63,8 @@ def get_dataloader(cfg, stage, num_workers=0, num_gpus=1):
     batch_size = cfg[f'{stage}_batch_size']
     shuffle = stage == 'train'
 
-    collate_fn = PointCloudRegistrationCollateFn()
+    collate_fn = PointCloudRegistrationCollateFn(
+        ('tgt2src_transform', 'queries', 'norm_queries', 'targets', 'norm_targets'))
     if cfg.model in ["regtr.RegTR", "qk_regtr.RegTR", "qk_regtr_old.RegTR", "qk_regtr_overlap.RegTR",
                      "qk_regtr_full.RegTR", "qk_regtr_full_pointformer.RegTR"]:
         data_loader = torch.utils.data.DataLoader(

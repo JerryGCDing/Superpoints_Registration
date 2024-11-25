@@ -158,7 +158,10 @@ class PointCloudRegistrationCollateFn(Callable):
         collated_dict["batch_size"] = batch_size
         if self.batch_keys is not None:
             for key in self.batch_keys:
-                collated_dict[key] = np.stack(collated_dict.pop(key), axis=0)
+                if batch_size > 1:
+                    collated_dict[key] = np.stack(collated_dict.pop(key), axis=0)
+                else:
+                    collated_dict[key] = collated_dict.pop(key)[None]
 
         # 4. array to tensor
         collated_dict = array_to_tensor(collated_dict)

@@ -100,26 +100,19 @@ class GenericRegModel(GenericModel, ABC):
     def validation_step(self, batch, batch_idx):
         pred = self.forward(batch)
         losses = self.compute_loss(pred, batch)
-        metrics = self._compute_metrics(pred, batch)
 
-        # visualize_registration(batch, pred, metrics=metrics, iter_idx=5, b=2)
-
-        val_outputs = (losses, metrics)
-
-        return val_outputs
+        return losses
 
     def validation_epoch_end(self, validation_step_outputs):
 
         losses = [v[0] for v in validation_step_outputs]
-        metrics = [v[1] for v in validation_step_outputs]
 
         loss_keys = set(losses[0].keys())
         losses_stacked = {k: torch.stack([l[k] for l in losses]) for k in loss_keys}
 
         # Computes the mean over all metrics
         avg_losses = {k: torch.mean(losses_stacked[k]) for k in loss_keys}
-        avg_metrics = self._aggregate_metrics(metrics)
-        return avg_metrics['reg_success_final'].item(), {'losses': avg_losses, 'metrics': avg_metrics}
+        return avg_losses
 
     def validation_summary_fn(self, writer: SummaryWriter, step: int, val_outputs):
         """Logs data during validation. This function will be called after every
@@ -135,10 +128,9 @@ class GenericRegModel(GenericModel, ABC):
         super().validation_summary_fn(writer, step, val_outputs)
 
         # Save histogram summaries
-        metrics = val_outputs['metrics']
-        for k in metrics:
+        for k in val_outputs:
             if k.endswith('hist'):
-                writer.add_histogram(f'metrics/{k}', metrics[k], step)
+                writer.add_histogram(f'metrics/{k}', val_outputs[k], step)
 
     def compute_IR(self, src_points, tgt_points, pose):
         src_points_tf = se3_transform(pose, src_points)

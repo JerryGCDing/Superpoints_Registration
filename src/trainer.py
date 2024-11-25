@@ -295,27 +295,24 @@ class Trainer:
             tbar_val.close()
 
             if num_gpus > 1:
-                val_score, val_outputs = model.module.validation_epoch_end(val_out_all)
+                val_outputs = model.module.validation_epoch_end(val_out_all)
                 model.module.validation_summary_fn(self.val_writer, step, val_outputs)
             else:
-                val_score, val_outputs = model.validation_epoch_end(val_out_all)
+                val_outputs = model.validation_epoch_end(val_out_all)
                 model.validation_summary_fn(self.val_writer, step, val_outputs)
 
             synchronize()
             log_str = ['Validation ended:']
-            if 'losses' in val_outputs:
-                log_str.append(metrics_to_string(val_outputs['losses'], '[Losses]'))
-            if 'metrics' in val_outputs:
-                log_str.append(metrics_to_string(val_outputs['metrics'], '[Metrics]'))
+            log_str.append(metrics_to_string(val_outputs['losses'], '[Losses]'))
             log_str = '\n'.join(log_str)
             self.logger.info(log_str)
 
         if save_ckpt and rank==0:
             if num_gpus > 1:
-                self.saver.save(model.module, step, val_score,
+                self.saver.save(model.module, step, val_outputs['total'],
                                 optimizer=model.module.optimizer, scheduler=model.module.scheduler)
             else:
-                self.saver.save(model, step, val_score,
+                self.saver.save(model, step, val_outputs['total'],
                             optimizer=model.optimizer, scheduler=model.scheduler)
 
         model.train()

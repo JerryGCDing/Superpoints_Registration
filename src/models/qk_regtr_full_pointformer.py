@@ -125,7 +125,7 @@ class RegTR(GenericRegModel):
             ) for i in range(cfg.depth)])
         self.dec_norm = nn.LayerNorm(cfg.d_embed, eps=1e-6)
 
-        self.corr_embed_3d = Mlp(cfg.project_dim, hidden_features=cfg.project_dim, out_features=4)
+        self.corr_embed_3d = Mlp(cfg.d_embed, hidden_features=cfg.project_dim, out_features=4)
 
     def forward(self, batch):
         src_pcd = {
@@ -185,10 +185,10 @@ class RegTR(GenericRegModel):
         ###########################
         queries = batch['queries']
         _b, _q, _ = queries.shape
-        q = torch.zeros(_b, _q, self.cfg.project_dim).to(src_feats_cond.device)
+        q = torch.zeros(_b, _q, self.cfg.d_embed).to(src_feats_cond.device)
 
         for block in self.dec_query_blocks:
-            q = block.forward_pcd_to_img(q, tgt_feats_cond, src_feat, None, queries)
+            q = block.forward_pcd_to_img(q, src_feats_cond, src_feat, None, queries)
         q = self.dec_norm(q)
         output = self.corr_embed_3d(q)
         corr = output[..., :3]
@@ -235,7 +235,7 @@ class RegTR(GenericRegModel):
             raise ValueError(f"Unsupported {self.cfg.mode}. ")
 
         log_conf = torch.log(conf)
-        conf_loss = loss * conf - self.alpha * log_conf
+        conf_loss = loss * conf - self.cfg.alpha * log_conf
         loss_details['confidence_loss'] = conf_loss
         total_loss += conf_loss.mean() if conf_loss.numel() > 0 else 0
         loss_details['total'] = total_loss

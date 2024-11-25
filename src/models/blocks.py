@@ -405,6 +405,7 @@ class EfficientCrossAttentionV4(EfficientCrossAttention):
             self.point_query_pos_embed_3d = PositionEmbeddingCoordsSine(n_dim=3, d_model=dim)
 
     def offset2batch(self, point, pos3d, offset):
+        assert offset[-1] == point.shape[0] == pos3d.shape[0]
         start = 0
         batch = []
         pos = []

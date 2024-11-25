@@ -1,8 +1,16 @@
 general:
-    expt_name: qk_regtr_full_4_layer
+    expt_name: qk_regtr_full_pointformer
+
+accelerate:
+    gradient_accumulation_steps: 2
+    mixed_precision: null
+    seed: 0
+    enable_broadcast_buffers: True
+    find_unused_parameters: False
+    gradient_as_bucket_view: False
 
 dataset:
-    train_batch_size: 24
+    train_batch_size: 4
     val_batch_size: 4
     dataset: modelnet
     root: "/home/jerrydty/Uni-corr/Superpoints_Registration/data/modelnet40_ply_hdf5_2048"

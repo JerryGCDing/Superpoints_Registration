@@ -2,7 +2,7 @@ general:
     expt_name: qk_regtr_full_4_layer
 
 dataset:
-    train_batch_size: 48
+    train_batch_size: 24
     val_batch_size: 4
     dataset: modelnet
     root: "/home/jerrydty/Uni-corr/Superpoints_Registration/data/modelnet40_ply_hdf5_2048"

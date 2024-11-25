@@ -48,6 +48,22 @@ pointformer_options:
     enable_rpe: False
     enable_flash: False
     # Network can be made a little larger.
+decoder_options:
+    depth: 12
+    num_heads: 16
+    enc_embed_dim: 1024
+    enc_embed_dim_3d: 768
+    dec_embed_dim: 768              # additional dims to account for point cloud
+    pred_dim_3d: 4                  # [(x,y,z), confidence]
+    point_patch_size: 1024
+    mlp_ratio: 4
+    qkv_bias: True
+    norm_img2: True
+    attn_drop: 0.0
+    proj_drop: 0.0
+    drop_path: 0.
+    query_pos_embed_3d: "coords_sine"
+    use_flash_attn: False
 
 lgr:
     use_lgr: False
@@ -105,27 +121,12 @@ model:
 
 
 losses:
-    inlier_loss_on: False
-    # Overlap loss
-    wt_overlap: 1.0
-    overlap_loss_pyr: 3
-    overlap_loss_on: [5]  # Apply loss on only final output
-
-    # Feature loss - I use the following thresholds
-    # Voxel sizes at different octaves: (0) 0.3 (1) 0.6 (2) 1.2 (3) 2.4  
-    # Voxel sizes at different octaves: (0) 0.2 (1) 0.4 (2) 0.8 (3) 1.6  
-    # Voxel sizes at different octaves: (0) 0.1 (1) 0.2 (2) 0.4 (3) 0.8  
-    # r_p and r_n are set to 1x and 2.0x the voxel sizes respectively
-    wt_feature: 0.1
-    wt_feature_un: 0.0
-    r_p: 1.6
-    r_n: 3.2
-    feature_loss_on: [0]
-    feature_loss_type: infonce
-
-    # Correspondence loss
-    wt_corr: 1.0
-    corr_loss_on: [5]
+    feature_loss: False
+    reg_loss: l1
+    mode: exp
+    alpha: 0.2
+    vmax: inf
+    vmin: 1
 
 
 validation:

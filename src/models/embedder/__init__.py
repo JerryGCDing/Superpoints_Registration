@@ -1,1 +1,1 @@
-from pos_embed import *
+from .pos_embed import *

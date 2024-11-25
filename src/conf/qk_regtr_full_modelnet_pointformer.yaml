@@ -3,9 +3,9 @@ general:
 
 dataset:
     dataset: modelnet
-    root: "/work/vig/tianyed/Uni-corr/mapoint/data/modelnet40_ply_hdf5_2048"
-    train_meta_data: "/work/vig/tianyed/Uni-corr/mapoint/data/metadata/modelnet_train_files.txt"
-    val_meta_data: "/work/vig/tianyed/Uni-corr/mapoint/data/metadata/modelnet_test_files.txt"
+    root: "/home/jerrydty/Uni-corr/Superpoints_Registration/data/modelnet40_ply_hdf5_2048"
+    train_meta_data: "/home/jerrydty/Uni-corr/Superpoints_Registration/data/metadata/modelnet_train_files.txt"
+    val_meta_data: "/home/jerrydty/Uni-corr/Superpoints_Registration/data/metadata/modelnet_test_files.txt"
     grid_size: 0.02
     max_points: 30000
     max_queries: 2000

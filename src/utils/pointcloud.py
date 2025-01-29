@@ -3,7 +3,7 @@ from typing import Union, Tuple
 import numpy as np
 import cv2
 import open3d as o3d
-from cvhelpers.open3d_helpers import to_o3d_pcd
+from src.cvhelpers.open3d_helpers import to_o3d_pcd
 
 
 def compute_overlap(src: Union[np.ndarray, o3d.geometry.PointCloud],

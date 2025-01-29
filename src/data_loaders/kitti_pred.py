@@ -57,17 +57,17 @@ class KittiDataset(Dataset, EasyDataset):
         'test': [8, 9, 10]
     }
 
-    def __init__(self, config, phase, transforms, data_augmentation=True):
+    def __init__(self, cfg, phase, transforms, data_augmentation=True):
         super(KittiDataset, self).__init__()
-        self.config = config
-        self.root = os.path.join(config.root, 'dataset')
-        self.icp_path = os.path.join(config.root, 'icp')
+        self.config = cfg
+        self.root = os.path.join(cfg.root, 'dataset')
+        self.icp_path = os.path.join(cfg.root, 'icp')
         if not os.path.exists(self.icp_path):
             os.makedirs(self.icp_path)
-        self.voxel_size = config.first_subsampling_dl
-        self.matching_search_voxel_size = config.overlap_radius
+        self.voxel_size = cfg.first_subsampling_dl
+        self.matching_search_voxel_size = cfg.overlap_radius
         self.data_augmentation = data_augmentation
-        self.augment_noise = config.augment_noise
+        self.augment_noise = cfg.augment_noise
         self.IS_ODOMETRY = True
         # self.augment_shift_range = config.augment_shift_range
         # self.augment_scale_max = config.augment_scale_max

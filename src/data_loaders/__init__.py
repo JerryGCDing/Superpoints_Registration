@@ -51,7 +51,7 @@ def get_dataloader(cfg, phase, num_workers=0, num_gpus=1):
             ])
         else:
             transforms_aug = None
-        dataset = KittiDataset(config=cfg, phase=phase, transforms=transforms_aug)
+        dataset = KittiDataset(cfg=cfg, phase=phase, transforms=transforms_aug)
 
     else:
         raise AssertionError('Invalid dataset')

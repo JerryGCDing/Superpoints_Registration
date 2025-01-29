@@ -9,8 +9,6 @@ from torch.utils.data import Dataset
 
 from kiss_icp.pybind import kiss_icp_pybind
 
-from .array_ops import GridSample
-
 def voxel_down_sample(points: np.ndarray, voxel_size: float):
     _points = kiss_icp_pybind._Vector3dVector(points)
     return np.asarray(kiss_icp_pybind._voxel_down_sample(_points, voxel_size))
@@ -44,6 +42,7 @@ def get_correspondences(src_pcd, tgt_pcd, trans, search_voxel_size, K=None):
     correspondences = torch.from_numpy(correspondences)
     return correspondences
 
+
 class KittiDataset(Dataset):
     """
     We follow D3Feat to add data augmentation part.
@@ -51,9 +50,9 @@ class KittiDataset(Dataset):
     Then we apply data augmentation to pcds. KPConv runs over processed pcds, but later for loss computation, we use pcds before data augmentation
     """
     DATA_FILES = {
-        'train': [0,1,2,3,4,5],
-        'val': [6,7],
-        'test': [8,9,10]
+        'train': [0, 1, 2, 3, 4, 5],
+        'val': [6, 7],
+        'test': [8, 9, 10]
     }
 
     def __init__(self, config, phase, transforms, data_augmentation=True):
@@ -71,7 +70,6 @@ class KittiDataset(Dataset):
         # self.augment_shift_range = config.augment_shift_range
         # self.augment_scale_max = config.augment_scale_max
         # self.augment_scale_min = config.augment_scale_min
-        self.grid_sample = GridSample(config.grid_size)
 
         # Initiate containers
         self.files = []
@@ -91,7 +89,8 @@ class KittiDataset(Dataset):
             # print(self.pairs_data.keys())
             # raise ValueError
         else:
-            print('Overlapping regions not precomputed. Run data_processing/compute_overlap_3dmatch.py to speed up data loading')
+            print(
+                'Overlapping regions not precomputed. Run data_processing/compute_overlap_3dmatch.py to speed up data loading')
             raise ValueError
 
     def prepare_kitti_ply(self, phase):
@@ -113,10 +112,10 @@ class KittiDataset(Dataset):
 
             ######################################
             # D3Feat script to generate test pairs
-            
-            if phase=="test" and all_pairs:
-                for i in range(len(inames)-1):
-                    self.files.append((drive_id, inames[i], inames[i+1]))
+
+            if phase == "test" and all_pairs:
+                for i in range(len(inames) - 1):
+                    self.files.append((drive_id, inames[i], inames[i + 1]))
 
             else:
                 more_than_10 = pdist > 10
@@ -173,9 +172,9 @@ class KittiDataset(Dataset):
                 pcd0 = to_o3d_pcd(xyz0_t)
                 pcd1 = to_o3d_pcd(xyz1)
                 reg = o3d.pipelines.registration.registration_icp(pcd0, pcd1, 0.2, np.eye(4),
-                                                           o3d.pipelines.registration.TransformationEstimationPointToPoint(),
-                                                           o3d.pipelines.registration.ICPConvergenceCriteria(
-                                                               max_iteration=200))
+                                                                  o3d.pipelines.registration.TransformationEstimationPointToPoint(),
+                                                                  o3d.pipelines.registration.ICPConvergenceCriteria(
+                                                                      max_iteration=200))
                 pcd0.transform(reg.transformation)
                 M2 = M @ reg.transformation
                 np.save(filename, M2)
@@ -205,6 +204,8 @@ class KittiDataset(Dataset):
 
         src_pcd_input = voxel_down_sample(xyz0, self.voxel_size)
         tgt_pcd_input = voxel_down_sample(xyz1, self.voxel_size)
+        # src_pcd_input = xyz0
+        # tgt_pcd_input = xyz1
 
         # if self.pairs_data is None:
         #     src_overlap_mask, tgt_overlap_mask, src_tgt_corr = compute_overlap(
@@ -217,29 +218,26 @@ class KittiDataset(Dataset):
         #     tgt_overlap_mask = np.asarray(self.pairs_data[f'pair_{idx}/tgt_mask'])
         #     src_tgt_corr = np.asarray(self.pairs_data[f'pair_{idx}/src_tgt_corr'])
 
-
         # crop the point cloud
         if self.config.crop_radius > 0:
-            radius = np.sqrt(src_pcd_input[:, 0]**2 + src_pcd_input[:, 1]**2)
+            radius = np.sqrt(src_pcd_input[:, 0] ** 2 + src_pcd_input[:, 1] ** 2)
             src_pcd_input = src_pcd_input[radius <= self.config.crop_radius]
 
-            radius = np.sqrt(tgt_pcd_input[:, 0]**2 + tgt_pcd_input[:, 1]**2)
+            radius = np.sqrt(tgt_pcd_input[:, 0] ** 2 + tgt_pcd_input[:, 1] ** 2)
             tgt_pcd_input = tgt_pcd_input[radius <= self.config.crop_radius]
 
         if self.config.remove_ground:
             src_pcd_input = src_pcd_input[src_pcd_input[:, 2] > -1]
             tgt_pcd_input = tgt_pcd_input[tgt_pcd_input[:, 2] > -1]
 
-        src_grid = self.grid_sample(src_pcd_input)
-        tgt_grid = self.grid_sample(tgt_pcd_input)
-
-        data = {'src_points': torch.from_numpy(src_pcd_input.astype(np.float32)), # X, Y, Z
-                'tgt_points': torch.from_numpy(tgt_pcd_input.astype(np.float32)),
-                'src_grid': torch.from_numpy(src_grid['grid_coord']),
-                'tgt_grid': torch.from_numpy(tgt_grid['grid_coord']),
-                'pose': torch.from_numpy(tsfm.astype(np.float32)), 'src_path': None, 'tgt_path': None}
+        # print("np array: ", src_overlap_mask.shape, tgt_overlap_mask.shape)
+        data = {}
+        data['src_xyz'] = torch.from_numpy(src_pcd_input.astype(np.float32))
+        data['tgt_xyz'] = torch.from_numpy(tgt_pcd_input.astype(np.float32))
         # data['src_overlap'] = torch.from_numpy(src_overlap_mask)
         # data['tgt_overlap'] = torch.from_numpy(tgt_overlap_mask)
+        data['pose'] = torch.from_numpy(tsfm.astype(np.float32))
+        data['src_path'], data['tgt_path'] = None, None
 
         # print("torch tensor: ", data['src_overlap'].shape, data['tgt_overlap'].shape)
         if self.transforms is not None:

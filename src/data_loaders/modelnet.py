@@ -7,7 +7,6 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from . import modelnet_transforms as Transforms
-from .array_ops import GridSample
 
 
 def get_train_datasets(args: argparse.Namespace):
@@ -136,6 +135,7 @@ class ModelNetHdf(Dataset):
         """
         self.config = args
         self._root = root
+        self.n_in_feats = args.in_feats_dim
         self.overlap_radius = args.overlap_radius
 
         if not os.path.exists(os.path.join(root)):
@@ -159,7 +159,6 @@ class ModelNetHdf(Dataset):
 
         self._data, self._labels = self._read_h5_files(h5_filelist, categories_idx)
         self._transform = transform
-        self.grid_sample = GridSample(args.grid_size)
 
     def __getitem__(self, item):
         sample = {'points': self._data[item, :, :], 'label': self._labels[item], 'idx': np.array(item, dtype=np.int32)}
@@ -172,13 +171,11 @@ class ModelNetHdf(Dataset):
             sample['points_src'][sample['correspondences'][0], :3],
             sample['points_ref'][sample['correspondences'][1], :3]], axis=1)
 
-        src_pcd_input = sample['points_src'][:, :3]
-        tgt_pcd_input = sample['points_ref'][:, :3]
         # Transform to my format
         if self.config.model in ["qk_mink.RegTR", "qk_mink_2.RegTR", "qk_mink_3.RegTR", "qk_mink_4.RegTR"]:
             sample_out = {
-                'src_xyz': torch.from_numpy(src_pcd_input),
-                'tgt_xyz': torch.from_numpy(tgt_pcd_input),
+                'src_xyz': torch.from_numpy(sample['points_src'][:, :3]),
+                'tgt_xyz': torch.from_numpy(sample['points_ref'][:, :3]),
                 'tgt_raw': torch.from_numpy(sample['points_raw'][:, :3]),
                 'src_overlap': torch.from_numpy(sample['src_overlap']),
                 'tgt_overlap': torch.from_numpy(sample['ref_overlap']),
@@ -192,13 +189,9 @@ class ModelNetHdf(Dataset):
                 'feats_tgt': torch.from_numpy(np.hstack([sample['points_ref'][:, :3]]))
             }
         else:
-            src_grid = self.grid_sample(src_pcd_input)
-            tgt_grid = self.grid_sample(tgt_pcd_input)
             sample_out = {
-                'src_points': torch.from_numpy(src_pcd_input),
-                'tgt_points': torch.from_numpy(tgt_pcd_input),
-                'src_grid': torch.from_numpy(src_grid['grid_coord']),
-                'tgt_grid': torch.from_numpy(tgt_grid['grid_coord']),
+                'src_xyz': torch.from_numpy(sample['points_src'][:, :3]),
+                'tgt_xyz': torch.from_numpy(sample['points_ref'][:, :3]),
                 'tgt_raw': torch.from_numpy(sample['points_raw'][:, :3]),
                 'src_overlap': torch.from_numpy(sample['src_overlap']),
                 'tgt_overlap': torch.from_numpy(sample['ref_overlap']),

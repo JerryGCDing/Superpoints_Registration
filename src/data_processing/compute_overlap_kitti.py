@@ -23,7 +23,7 @@ from src.data_loaders.kitti_pred import KittiDataset
 
 def process(phase, opt):
     cfg = EasyDict(load_config(opt.config))
-    dataset = KittiDataset(config=cfg, phase=phase)
+    dataset = KittiDataset(config=cfg, phase=phase, transforms=None)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=1)
 
     if opt.remove_ground:
@@ -71,7 +71,7 @@ def process(phase, opt):
 
 def check(phase, opt):
     cfg = EasyDict(load_config(opt.config))
-    dataset = KittiDataset(config=cfg, phase=phase)
+    dataset = KittiDataset(config=cfg, phase=phase, transforms=None)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=8)
 
     velo_2_cam0 = np.array([4.276802385584e-04, -9.999672484946e-01, -8.084491683471e-03, -1.198459927713e-02,

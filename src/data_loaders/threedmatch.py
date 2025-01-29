@@ -14,7 +14,6 @@ from torch.utils.data import Dataset
 
 from src.utils.se3_numpy import se3_init, se3_transform, se3_inv
 from src.utils.pointcloud import compute_overlap
-from .array_ops import GridSample
 
 
 class ThreeDMatchDataset(Dataset):
@@ -25,10 +24,10 @@ class ThreeDMatchDataset(Dataset):
 
         assert phase in ['train', 'val', 'test']
         if phase in ['train', 'val']:
-            info_fname = f'/work/vig/tianyed/Superpoint_Reg/Superpoints_Registration/src/datasets/3dmatch/{phase}_info.pkl'
+            info_fname = f'datasets/3dmatch/{phase}_info.pkl'
             pairs_fname = f'{phase}_pairs-overlapmask.h5'
         else:
-            info_fname = f'/work/vig/tianyed/Superpoint_Reg/Superpoints_Registration/src/datasets/3dmatch/{phase}_{cfg.benchmark}_info.pkl'
+            info_fname = f'datasets/3dmatch/{phase}_{cfg.benchmark}_info.pkl'
             pairs_fname = f'{phase}_{cfg.benchmark}_pairs-overlapmask.h5'
 
         with open(info_fname, 'rb') as fid:
@@ -61,7 +60,6 @@ class ThreeDMatchDataset(Dataset):
         self.search_voxel_size = cfg.overlap_radius
         self.transforms = transforms
         self.phase = phase
-        self.grid_sample = GridSample(cfg.grid_size)
 
     def __len__(self):
         return len(self.infos['rot'])
@@ -90,15 +88,9 @@ class ThreeDMatchDataset(Dataset):
             src_tgt_corr = np.asarray(self.pairs_data[f'pair_{item:06d}/src_tgt_corr'])
         # print("np array: ", src_overlap_mask.shape, tgt_overlap_mask.shape)
 
-        src_xyz = src_xyz.astype(np.float32)
-        tgt_xyz = tgt_xyz.astype(np.float32)
-        src_grid = self.grid_sample(src_xyz)
-        tgt_grid = self.grid_sample(tgt_xyz)
         data_pair = {
-            'src_points': torch.from_numpy(src_xyz),
-            'tgt_points': torch.from_numpy(tgt_xyz),
-            'src_grid': torch.from_numpy(src_grid['grid_coord']),
-            'tgt_grid': torch.from_numpy(tgt_grid['grid_coord']),
+            'src_xyz': torch.from_numpy(src_xyz).float(),
+            'tgt_xyz': torch.from_numpy(tgt_xyz).float(),
             'src_overlap': torch.from_numpy(src_overlap_mask),
             'tgt_overlap': torch.from_numpy(tgt_overlap_mask),
             'correspondences': torch.from_numpy(src_tgt_corr),  # indices

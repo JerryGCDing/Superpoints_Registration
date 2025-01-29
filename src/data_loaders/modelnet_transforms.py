@@ -11,8 +11,8 @@ from scipy.stats import special_ortho_group
 import torch
 import torch.utils.data
 
-from utils.se3_numpy import se3_transform, se3_inv
-from utils.so3_numpy import so3_transform
+from src.utils.se3_numpy import se3_transform, se3_inv
+from src.utils.so3_numpy import so3_transform
 
 
 def uniform_2_sphere(num: int = None):

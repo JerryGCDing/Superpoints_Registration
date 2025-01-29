@@ -5,11 +5,11 @@ Note that the operations are in-place
 import random
 
 import numpy as np
-from cvhelpers.lie.numpy import SE3
+from src.cvhelpers.lie.numpy import SE3
 from scipy.spatial.transform import Rotation
 import torch
 
-from utils.se3_torch import se3_inv, se3_init, se3_cat, se3_transform
+from src.utils.se3_torch import se3_inv, se3_init, se3_cat, se3_transform
 
 
 class RigidPerturb:

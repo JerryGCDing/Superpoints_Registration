@@ -12,8 +12,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from utils.se3_numpy import se3_init, se3_transform, se3_inv
-# from utils.pointcloud import compute_overlap
+from src.utils.se3_numpy import se3_init, se3_transform, se3_inv
+from src.utils.pointcloud import compute_overlap
 from .array_ops import GridSample
 
 

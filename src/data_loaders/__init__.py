@@ -1,5 +1,5 @@
 from .transforms import *
-from modelnet import *
+from .modelnet import *
 from .collate_functions import collate_pair, collate_tensors
 from .threedmatch import ThreeDMatchDataset
 from .kitti_pred import KittiDataset

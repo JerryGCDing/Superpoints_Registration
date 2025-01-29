@@ -87,12 +87,6 @@ class KittiDataset(Dataset):
         if os.path.exists(os.path.join(self.config.root, pairs_fname)):
             self.pairs_data = h5py.File(os.path.join(self.config.root, pairs_fname), 'r')
 
-            # print(self.pairs_data.keys())
-            # raise ValueError
-        else:
-            warning(
-                'Overlapping regions not precomputed. Run data_processing/compute_overlap_kitti.py to speed up data loading')
-
     def prepare_kitti_ply(self, phase):
         assert phase in ['train', 'val', 'test']
         all_pairs = False
@@ -206,17 +200,6 @@ class KittiDataset(Dataset):
         tgt_pcd_input = voxel_down_sample(xyz1, self.voxel_size)
         # src_pcd_input = xyz0
         # tgt_pcd_input = xyz1
-
-        # if self.pairs_data is None:
-        #     src_overlap_mask, tgt_overlap_mask, src_tgt_corr = compute_overlap(
-        #         se3_transform(pose, src_pcd_input),
-        #         tgt_pcd_input,
-        #         self.search_voxel_size,
-        #     )
-        # else:
-        #     src_overlap_mask = np.asarray(self.pairs_data[f'pair_{idx}/src_mask'])
-        #     tgt_overlap_mask = np.asarray(self.pairs_data[f'pair_{idx}/tgt_mask'])
-        #     src_tgt_corr = np.asarray(self.pairs_data[f'pair_{idx}/src_tgt_corr'])
 
         # crop the point cloud
         if self.config.crop_radius > 0:

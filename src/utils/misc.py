@@ -24,6 +24,7 @@ def load_config(path):
     config = dict()
     for key, value in cfg.items():
         if key == 'dataset':
+            config[key] = value
             continue
         for k, v in value.items():
             config[k] = v

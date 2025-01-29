@@ -110,8 +110,8 @@ def get_multi_dataloader(cfg, phase, num_workers=0, num_gpus=1):
         return dataset
 
     ds_cls = None
-    for key in cfg.dataset.keys():
-        ds_cfg = cfg.dataset[key]
+    for key in cfg.keys():
+        ds_cfg = cfg[key]
         if ds_cls is None:
             ds_cls = get_dataset(key, ds_cfg, phase)
         else:

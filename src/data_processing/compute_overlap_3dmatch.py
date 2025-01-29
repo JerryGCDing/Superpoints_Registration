@@ -26,7 +26,7 @@ opt = parser.parse_args()
 
 def process(phase):
 
-    with open(f'datasets/3dmatch/{phase}_info.pkl', 'rb') as fid:
+    with open(f'src/datasets/3dmatch/{phase}_info.pkl', 'rb') as fid:
         infos = pickle.load(fid)
 
     out_file = os.path.join(opt.base_dir, f'{phase}_pairs-overlapmask.h5')

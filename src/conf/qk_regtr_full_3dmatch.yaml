@@ -3,7 +3,7 @@ general:
 
 dataset:
     dataset: 3dmatch
-    root: '../data/indoor'
+    root: '/home/jerrydty/Datasets/3D3D/indoor'
     augment_noise: 0.005
     perturb_pose: small
     train_batch_size: 2

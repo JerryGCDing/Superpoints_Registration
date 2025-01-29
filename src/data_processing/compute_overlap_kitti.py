@@ -5,20 +5,21 @@ import argparse
 import os
 import pickle
 import sys
+
 sys.path.append(os.getcwd())
 from easydict import EasyDict
-from utils.misc import load_config
+from src.utils.misc import load_config
 import h5py
 import numpy as np
 import torch
 from tqdm import tqdm
-from utils.pointcloud import compute_overlap
-from utils.se3_numpy import se3_transform, se3_init
+from src.utils.pointcloud import compute_overlap
+from src.utils.se3_numpy import se3_transform, se3_init
 from matplotlib.pyplot import cm as colormap
 
-import cvhelpers.visualization as cvv
-import cvhelpers.colors as colors
-from data_loaders.mkitti import KittiDataset
+import src.cvhelpers.visualization as cvv
+import src.cvhelpers.colors as colors
+from src.data_loaders.kitti_pred import KittiDataset
 
 def process(phase, opt):
     cfg = EasyDict(load_config(opt.config))

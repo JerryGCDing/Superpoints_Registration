@@ -105,7 +105,7 @@ def get_multi_dataloader(cfg, phase, num_workers=0, num_gpus=1):
                 ])
             else:
                 transforms_aug = None
-            dataset = DATASET_CLS[_cls](config=_cfg, phase=_phase, transforms=transforms_aug)
+            dataset = DATASET_CLS[_cls](cfg=_cfg, phase=_phase, transforms=transforms_aug)
 
         return dataset
 

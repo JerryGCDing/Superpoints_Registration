@@ -13,17 +13,18 @@ dataloader:
             overlap_radius: 0.0375  # Distance below which points will be considered to be overlapping
             alpha: 0.5
             beta: 1.5
-        kitti:
-            root: /home/jerrydty/Datasets/3D3D/KITTI_Odometry
-            validation_seq: "01"
-            augment_noise: 0.01
-            perturb_pose: large
-            downsample: True
-            alpha: 0.5
-            beta: 1.5
-            crop_radius: 0.0
-            remove_ground: False
-            first_subsampling_dl: 0.1
+#        kitti:
+#            root: /home/jerrydty/Datasets/3D3D/KITTI_Odometry
+#            validation_seq: "01"
+#            augment_noise: 0.01
+#            perturb_pose: large
+#            downsample: True
+#            alpha: 0.5
+#            beta: 1.5
+#            crop_radius: 0.0
+#            remove_ground: False
+#            first_subsampling_dl: 0.1
+#            overlap_radius: 0.0375
         modelnet:
             root: /home/jerrydty/Datasets/3D3D/modelnet40_ply_hdf5_2048
             train_categoryfile: src/datasets/modelnet/modelnet40_half1.txt
@@ -55,7 +56,7 @@ kpconv_options:
     num_layers: 4
     neighborhood_limits: [40, 40, 40, 40]
     aggregation_mode: sum
-    first_subsampling_dl: 0.1
+    first_subsampling_dl: 0.025
     first_feats_dim: 128
     fixed_kernel_points: center
     in_feats_dim: 1

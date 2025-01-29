@@ -1,6 +1,7 @@
 # Basic libs
 import os, glob, random, copy, torch
 import numpy as np
+from logging import warning
 # import open3d as o3d
 from scipy.spatial.transform import Rotation
 import h5py
@@ -89,9 +90,8 @@ class KittiDataset(Dataset):
             # print(self.pairs_data.keys())
             # raise ValueError
         else:
-            print(
-                'Overlapping regions not precomputed. Run data_processing/compute_overlap_3dmatch.py to speed up data loading')
-            raise ValueError
+            warning(
+                'Overlapping regions not precomputed. Run data_processing/compute_overlap_kitti.py to speed up data loading')
 
     def prepare_kitti_ply(self, phase):
         assert phase in ['train', 'val', 'test']

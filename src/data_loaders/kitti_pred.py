@@ -7,6 +7,7 @@ from scipy.spatial.transform import Rotation
 import h5py
 # Dataset parent class
 from torch.utils.data import Dataset
+from .base.easy_dataset import EasyDataset
 
 from kiss_icp.pybind import kiss_icp_pybind
 
@@ -44,7 +45,7 @@ def get_correspondences(src_pcd, tgt_pcd, trans, search_voxel_size, K=None):
     return correspondences
 
 
-class KittiDataset(Dataset):
+class KittiDataset(Dataset, EasyDataset):
     """
     We follow D3Feat to add data augmentation part.
     We first voxelize the pcd and get matches

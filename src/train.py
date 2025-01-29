@@ -2,7 +2,7 @@ import os, argparse
 from easydict import EasyDict
 from cvhelpers.misc import prepare_logger
 from cvhelpers.torch_helpers import setup_seed
-from data_loaders import get_dataloader
+from data_loaders import get_dataloader, get_multi_dataloader
 from models import get_model
 from trainer import Trainer
 from utils.misc import load_config
@@ -12,8 +12,10 @@ import torch
 from utils.comm import *
 
 def main(opt):
-    train_loader = get_dataloader(cfg, phase='train', num_workers=opt.num_workers, num_gpus=opt.num_gpus)
-    val_loader = get_dataloader(cfg, phase='val', num_workers=opt.num_workers, num_gpus=opt.num_gpus)
+    # train_loader = get_dataloader(cfg, phase='train', num_workers=opt.num_workers, num_gpus=opt.num_gpus)
+    # val_loader = get_dataloader(cfg, phase='val', num_workers=opt.num_workers, num_gpus=opt.num_gpus)
+    train_loader = get_multi_dataloader(cfg, phase='train', num_workers=opt.num_workers, num_gpus=opt.num_gpus)
+    val_loader = get_multi_dataloader(cfg, phase='val', num_workers=opt.num_workers, num_gpus=opt.num_gpus)
 
     Model = get_model(cfg.model)
     model = Model(cfg)

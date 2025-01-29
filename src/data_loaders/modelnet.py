@@ -7,28 +7,36 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from . import modelnet_transforms as Transforms
+from .base.easy_dataset import EasyDataset
 
 
 def get_train_datasets(args: argparse.Namespace):
-    train_categories, val_categories = None, None
+    train_categories = None
     if args.train_categoryfile:
         train_categories = [line.rstrip('\n') for line in open(args.train_categoryfile)]
         train_categories.sort()
+
+    train_transforms = get_transforms(args.noise_type, args.rot_mag, args.trans_mag,
+                                      args.num_points, args.partial)
+    train_transforms = torchvision.transforms.Compose(train_transforms)
+
+    train_data = ModelNetHdf(args, args.root, subset='train', categories=train_categories,
+                             transform=train_transforms)
+
+    return train_data
+
+
+def get_val_datasets(args: argparse.Namespace):
+    val_categories = None
     if args.val_categoryfile:
         val_categories = [line.rstrip('\n') for line in open(args.val_categoryfile)]
         val_categories.sort()
 
-    train_transforms, val_transforms = get_transforms(args.noise_type, args.rot_mag, args.trans_mag,
-                                                      args.num_points, args.partial)
-    train_transforms = torchvision.transforms.Compose(train_transforms)
-    val_transforms = torchvision.transforms.Compose(val_transforms)
-
-    train_data = ModelNetHdf(args, args.root, subset='train', categories=train_categories,
-                             transform=train_transforms)
+    val_transforms = torchvision.transforms.Compose(get_transforms(args.noise_type, args.rot_mag, args.trans_mag,
+                                                                   args.num_points, args.partial))
     val_data = ModelNetHdf(args, args.root, subset='test', categories=val_categories,
                            transform=val_transforms)
-
-    return train_data, val_data
+    return val_data
 
 
 def get_test_datasets(args: argparse.Namespace):
@@ -121,7 +129,7 @@ def get_transforms(noise_type: str,
     return train_transforms, test_transforms
 
 
-class ModelNetHdf(Dataset):
+class ModelNetHdf(Dataset, EasyDataset):
     def __init__(self, args, root: str, subset: str = 'train', categories: List = None, transform=None):
         """ModelNet40 dataset from PointNet.
         Automatically downloads the dataset if not available

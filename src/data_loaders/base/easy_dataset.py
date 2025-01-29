@@ -35,10 +35,11 @@ class EasyDataset:
         if not (shuffle):
             raise NotImplementedError()  # cannot deal yet
         num_of_aspect_ratios = len(self._resolutions)
-        return BatchedRandomSampler(self, batch_size, num_of_aspect_ratios, world_size=world_size, rank=rank, drop_last=drop_last)
+        return BatchedRandomSampler(self, batch_size, num_of_aspect_ratios, world_size=world_size, rank=rank,
+                                    drop_last=drop_last)
 
 
-class MulDataset (EasyDataset):
+class MulDataset(EasyDataset):
     """ Artifically augmenting the size of a dataset.
     """
     multiplicator: int
@@ -66,7 +67,7 @@ class MulDataset (EasyDataset):
         return self.dataset._resolutions
 
 
-class ResizedDataset (EasyDataset):
+class ResizedDataset(EasyDataset):
     """ Artifically changing the size of a dataset.
     """
     new_size: int
@@ -81,26 +82,27 @@ class ResizedDataset (EasyDataset):
 
     def __repr__(self):
         size_str = str(self.new_size)
-        for i in range((len(size_str)-1) // 3):
-            sep = -4*i-3
+        for i in range((len(size_str) - 1) // 3):
+            sep = -4 * i - 3
             size_str = size_str[:sep] + '_' + size_str[sep:]
         return f'{size_str} @ {repr(self.dataset)}'
 
     def set_epoch(self, epoch):
         # this random shuffle only depends on the epoch
-        rng = np.random.default_rng(seed=epoch+777)
+        rng = np.random.default_rng(seed=epoch + 777)
 
         # shuffle all indices
         perm = rng.permutation(len(self.dataset))
 
         # rotary extension until target size is met
-        shuffled_idxs = np.concatenate([perm] * (1 + (len(self)-1) // len(self.dataset)))
+        shuffled_idxs = np.concatenate([perm] * (1 + (len(self) - 1) // len(self.dataset)))
         self._idxs_mapping = shuffled_idxs[:self.new_size]
 
         assert len(self._idxs_mapping) == self.new_size
 
     def __getitem__(self, idx):
-        assert hasattr(self, '_idxs_mapping'), 'You need to call dataset.set_epoch() to use ResizedDataset.__getitem__()'
+        assert hasattr(self,
+                       '_idxs_mapping'), 'You need to call dataset.set_epoch() to use ResizedDataset.__getitem__()'
         if isinstance(idx, tuple):
             idx, other = idx
             return self.dataset[self._idxs_mapping[idx], other]
@@ -112,7 +114,7 @@ class ResizedDataset (EasyDataset):
         return self.dataset._resolutions
 
 
-class CatDataset (EasyDataset):
+class CatDataset(EasyDataset):
     """ Concatenation of several datasets
     """
 
@@ -127,7 +129,9 @@ class CatDataset (EasyDataset):
 
     def __repr__(self):
         # remove uselessly long transform
-        return ' + '.join(repr(dataset).replace(',transform=Compose( ToTensor() Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)))', '') for dataset in self.datasets)
+        return ' + '.join(repr(dataset).replace(
+            ',transform=Compose( ToTensor() Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)))', '') for dataset in
+                          self.datasets)
 
     def set_epoch(self, epoch):
         for dataset in self.datasets:

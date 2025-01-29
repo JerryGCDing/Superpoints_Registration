@@ -16,8 +16,8 @@ from utils.comm import *
 def main(opt):
     # train_loader = get_dataloader(cfg, phase='train', num_workers=opt.num_workers, num_gpus=opt.num_gpus)
     # val_loader = get_dataloader(cfg, phase='val', num_workers=opt.num_workers, num_gpus=opt.num_gpus)
-    train_loader = get_multi_dataloader(cfg.dataset, phase='train', num_workers=opt.num_workers, num_gpus=opt.num_gpus)
-    val_loader = get_multi_dataloader(cfg.dataset, phase='val', num_workers=opt.num_workers, num_gpus=opt.num_gpus)
+    train_loader = get_multi_dataloader(cfg.dataloader, phase='train', num_workers=opt.num_workers, num_gpus=opt.num_gpus)
+    val_loader = get_multi_dataloader(cfg.dataloader, phase='val', num_workers=opt.num_workers, num_gpus=opt.num_gpus)
 
     Model = get_model(cfg.model)
     model = Model(cfg)

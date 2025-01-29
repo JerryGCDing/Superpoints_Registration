@@ -11,11 +11,9 @@ from .losses.corr_loss import CorrCriterion
 from .losses.feature_loss import InfoNCELossFull, CircleLossFull
 from .transformer.position_embedding import PositionEmbeddingCoordsSine, PositionEmbeddingLearned
 from .transformer.transformers import TransformerCrossEncoderLayer, TransformerCrossEncoder
-from ..utils.se3_torch import compute_rigid_transform, se3_transform_list, se3_transform, se3_inv, compute_rigid_transform_with_sinkhorn, pairwise_distance
-from ..utils.seq_manipulation import split_src_tgt, pad_sequence, unpad_sequences
+from src.utils.se3_torch import compute_rigid_transform, se3_transform_list, se3_transform, se3_inv, compute_rigid_transform_with_sinkhorn, pairwise_distance
+from src.utils.seq_manipulation import split_src_tgt, pad_sequence, unpad_sequences
 _TIMEIT = False
-from sklearn.metrics import confusion_matrix
-import numpy as np
 import torch.utils.checkpoint
 """
 This implementation contains every test

@@ -9,6 +9,8 @@ from utils.misc import load_config
 from torch.distributed import init_process_group
 import os
 import torch
+import json
+
 from utils.comm import *
 
 def main(opt):
@@ -83,7 +85,7 @@ if __name__ == '__main__':
     cfg = EasyDict(load_config(opt.config))
 
     # Hack: Stores different datasets to its own subdirectory
-    opt.logdir = os.path.join(opt.logdir, cfg.dataset)
+    # opt.logdir = os.path.join(opt.logdir, cfg.dataset)
 
     if opt.name is None and len(cfg.get('expt_name', '')) > 0:
         opt.name = cfg.expt_name

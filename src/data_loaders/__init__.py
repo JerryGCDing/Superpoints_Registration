@@ -98,8 +98,8 @@ def get_multi_dataloader(cfg, phase, num_workers=0, num_gpus=1):
         else:
             if _phase == 'train':
                 transforms_aug = torchvision.transforms.Compose([
-                    transforms.RigidPerturb(perturb_mode=cfg.perturb_pose),
-                    transforms.Jitter(scale=cfg.augment_noise),
+                    transforms.RigidPerturb(perturb_mode=_cfg.perturb_pose),
+                    transforms.Jitter(scale=_cfg.augment_noise),
                     transforms.ShufflePoints(),
                     transforms.RandomSwap(),
                 ])

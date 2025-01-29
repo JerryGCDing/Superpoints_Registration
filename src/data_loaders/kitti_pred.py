@@ -2,7 +2,7 @@
 import os, glob, random, copy, torch
 import numpy as np
 from logging import warning
-# import open3d as o3d
+import open3d as o3d
 from scipy.spatial.transform import Rotation
 import h5py
 # Dataset parent class

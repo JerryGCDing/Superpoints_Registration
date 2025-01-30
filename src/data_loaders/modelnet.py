@@ -16,8 +16,8 @@ def get_train_datasets(args: argparse.Namespace):
         train_categories = [line.rstrip('\n') for line in open(args.train_categoryfile)]
         train_categories.sort()
 
-    train_transforms = get_transforms(args.noise_type, args.rot_mag, args.trans_mag,
-                                      args.num_points, args.partial)
+    train_transforms, _ = get_transforms(args.noise_type, args.rot_mag, args.trans_mag,
+                                         args.num_points, args.partial)
     train_transforms = torchvision.transforms.Compose(train_transforms)
 
     train_data = ModelNetHdf(args, args.root, subset='train', categories=train_categories,
@@ -32,8 +32,8 @@ def get_val_datasets(args: argparse.Namespace):
         val_categories = [line.rstrip('\n') for line in open(args.val_categoryfile)]
         val_categories.sort()
 
-    val_transforms = torchvision.transforms.Compose(get_transforms(args.noise_type, args.rot_mag, args.trans_mag,
-                                                                   args.num_points, args.partial))
+    _, val_transforms = torchvision.transforms.Compose(get_transforms(args.noise_type, args.rot_mag, args.trans_mag,
+                                                                      args.num_points, args.partial))
     val_data = ModelNetHdf(args, args.root, subset='test', categories=val_categories,
                            transform=val_transforms)
     return val_data

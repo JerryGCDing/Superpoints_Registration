@@ -72,8 +72,8 @@ class ThreeDMatchDataset(Dataset, EasyDataset):
         pose_inv = se3_inv(pose)
         src_path = self.infos['src'][item]
         tgt_path = self.infos['tgt'][item]
-        src_xyz = torch.load(os.path.join(self.base_dir, src_path))
-        tgt_xyz = torch.load(os.path.join(self.base_dir, tgt_path))
+        src_xyz = torch.load(os.path.join(self.base_dir, src_path), map_location='cpu', weights_only=True)
+        tgt_xyz = torch.load(os.path.join(self.base_dir, tgt_path), map_location='cpu', weights_only=True)
         overlap_p = self.infos['overlap'][item]
 
         # Get overlap region

@@ -59,10 +59,8 @@ class Trainer:
         torch.autograd.set_detect_anomaly(self.opt.debug)
 
         done = False
-        epoch = 0
         loss_smooth = None
         stats_meter = StatsMeter()
-        total_iter = self.niter if self.niter > 0 else len(train_loader) * -self.niter
         train_output, losses = {}, {}
         save_ckpt = True if local_rank == 0 else False
 
@@ -82,12 +80,12 @@ class Trainer:
                                  limit_steps=self.opt.nb_sanity_val_steps, save_ckpt=save_ckpt, num_gpus=num_gpus, rank=local_rank)
 
         # Main training loop
-        while not done:  # Loop over epochs
+        for epoch in self.opt.num_epoch:  # Loop over epochs
             if num_gpus > 1:
                 train_loader.sampler.set_epoch(epoch)
-            self.logger.info('Starting epoch {} (steps {} - {})'.format(
-                epoch, global_step, global_step + len(train_loader)))
-            tbar = tqdm(total=len(train_loader), ncols=80, smoothing=0)
+            if local_rank == 0:
+                self.logger.info('Starting epoch {} (steps {} - {})'.format(
+                    epoch, global_step, global_step + len(train_loader)))
 
             # Train
             model.train()
@@ -162,56 +160,43 @@ class Trainer:
                         batch['item'], batch['src_path'], batch['tgt_path']))
                 else:
                     loss_smooth = 0.99 * loss_smooth + 0.01 * losses['total'].item()
-                tbar.set_description('Loss:{:.3g}'.format(loss_smooth))
-
-                # except Exception as inst:
-                #     # for i in range(len(batch['src_xyz'])):
-                #     #     print(batch['src_xyz'][i].shape)
-                #     exc_type, exc_obj, exc_tb = sys.exc_info()
-                #     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                #     self.logger.error(f'{exc_type} at {fname}:{exc_tb.tb_lineno} - {inst}')
-                #     self.logger.debug(traceback.format_exc())
-
-                tbar.update(1)
-                # torch.cuda.empty_cache()
 
                 if global_step == first_step + 1 or global_step % self.opt.summary_every == 0:
                     if num_gpus > 1:
-                        model.module.train_summary_fn(writer=self.train_writer, step=global_step,
-                                                      data_batch=batch, train_output=train_output, train_losses=losses)
+                        if local_rank == 0:
+                            model.module.train_summary_fn(writer=self.train_writer,
+                                                          step=global_step,
+                                                          data_batch=batch,
+                                                          train_output=train_output,
+                                                          train_losses=losses)
                     else:
                         model.train_summary_fn(writer=self.train_writer, step=global_step,
                                                data_batch=batch, train_output=train_output, train_losses=losses)
 
-                if global_step % self.opt.validate_every == 0:
-                    tbar.close()  # we turn off the training progress bar since certain
-                                  # environments (e.g. Pycharm) do not handle stacking well
-
                     # Run validation, and save checkpoint.
-                    self._run_validation(model, val_loader, step=global_step, save_ckpt=save_ckpt, num_gpus=num_gpus, rank=local_rank)
-                    tbar = tqdm(total=len(train_loader), ncols=80, initial=batch_idx+1,
-                                desc=tbar.desc[:-2])
-
-                if global_step - first_step >= total_iter:
-                    done = True
-                    break
+                    if local_rank == 0:
+                        self._run_validation(model,
+                                             val_loader,
+                                             step=global_step,
+                                             save_ckpt=save_ckpt,
+                                             num_gpus=num_gpus,
+                                             rank=local_rank)
 
             if num_gpus > 1:
                 model.module.train_epoch_end()
             else:
                 model.train_epoch_end()
-            tbar.close()
 
             losses_dict = {k: stats_meter[k].avg for k in stats_meter}
-            log_str = 'Epoch {} complete in {}. Average train losses: '.format(
-                epoch, pretty_time_delta(time.perf_counter() - t_epoch_start))
-            log_str += metrics_to_string(losses_dict) + '\n'
-            self.logger.info(log_str)
+            if local_rank == 0:
+                log_str = 'Epoch {} complete in {}. Average train losses: '.format(
+                    epoch, pretty_time_delta(time.perf_counter() - t_epoch_start))
+                log_str += metrics_to_string(losses_dict) + '\n'
+                self.logger.info(log_str)
             stats_meter.clear()
 
-            epoch += 1
-
-        self.logger.info('Ending training. Number of training steps = {}'.format(global_step))
+        if local_rank == 0:
+            self.logger.info('Ending training. Number of training steps = {}'.format(global_step))
 
     def test(self, model: GenericModel, test_loader):
         # Setup

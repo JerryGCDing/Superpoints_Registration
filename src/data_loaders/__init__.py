@@ -7,7 +7,6 @@ from torch.utils.data.distributed import DistributedSampler
 
 import torchvision
 
-
 DATASET_CLS = {'3dmatch': ThreeDMatchDataset, 'kitti': KittiDataset}
 
 
@@ -121,9 +120,10 @@ def get_multi_dataloader(cfg, phase, num_workers=0, num_gpus=1):
     data_loader = torch.utils.data.DataLoader(
         ds_cls,
         batch_size=batch_size,
-        shuffle=phase == 'train' if num_gpus == 1 else False,
         num_workers=num_workers,
         collate_fn=collate_pair,
-        sampler=torch.utils.data.distributed.DistributedSampler(ds_cls) if num_gpus > 1 else None
+        sampler=torch.utils.data.distributed.DistributedSampler(ds_cls,
+                                                                shuffle=phase == 'train',
+                                                                drop_last=True) if num_gpus > 1 else None
     )
     return data_loader

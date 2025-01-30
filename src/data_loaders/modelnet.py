@@ -179,36 +179,34 @@ class ModelNetHdf(Dataset, EasyDataset):
             sample['points_ref'][sample['correspondences'][1], :3]], axis=1)
 
         # Transform to my format
-        if self.config.model in ["qk_mink.RegTR", "qk_mink_2.RegTR", "qk_mink_3.RegTR", "qk_mink_4.RegTR"]:
-            sample_out = {
-                'src_xyz': torch.from_numpy(sample['points_src'][:, :3]),
-                'tgt_xyz': torch.from_numpy(sample['points_ref'][:, :3]),
-                'tgt_raw': torch.from_numpy(sample['points_raw'][:, :3]),
-                'src_overlap': torch.from_numpy(sample['src_overlap']),
-                'tgt_overlap': torch.from_numpy(sample['ref_overlap']),
-                'correspondences': torch.from_numpy(sample['correspondences']),
-                'pose': torch.from_numpy(sample['transform_gt']),
-                'idx': torch.from_numpy(sample['idx']),
-                'corr_xyz': torch.from_numpy(corr_xyz),
-                'coords_src': torch.from_numpy(np.floor(sample['points_src'][:, :3] / self.config.voxel_size)),
-                'coords_tgt': torch.from_numpy(np.floor(sample['points_ref'][:, :3] / self.config.voxel_size)),
-                'feats_src': torch.from_numpy(np.hstack([sample['points_src'][:, :3]])),
-                'feats_tgt': torch.from_numpy(np.hstack([sample['points_ref'][:, :3]]))
-            }
-        else:
-            sample_out = {
-                'src_xyz': torch.from_numpy(sample['points_src'][:, :3]),
-                'tgt_xyz': torch.from_numpy(sample['points_ref'][:, :3]),
-                'tgt_raw': torch.from_numpy(sample['points_raw'][:, :3]),
-                'src_overlap': torch.from_numpy(sample['src_overlap']),
-                'tgt_overlap': torch.from_numpy(sample['ref_overlap']),
-                'correspondences': torch.from_numpy(sample['correspondences']),
-                'pose': torch.from_numpy(sample['transform_gt']),
-                'idx': torch.from_numpy(sample['idx']),
-                'corr_xyz': torch.from_numpy(corr_xyz),
-            }
-
-        # print("Type is: ", type(sample_out['src_xyz']))
+        # if self.config.model in ["qk_mink.RegTR", "qk_mink_2.RegTR", "qk_mink_3.RegTR", "qk_mink_4.RegTR"]:
+        #     sample_out = {
+        #         'src_xyz': torch.from_numpy(sample['points_src'][:, :3]),
+        #         'tgt_xyz': torch.from_numpy(sample['points_ref'][:, :3]),
+        #         'tgt_raw': torch.from_numpy(sample['points_raw'][:, :3]),
+        #         'src_overlap': torch.from_numpy(sample['src_overlap']),
+        #         'tgt_overlap': torch.from_numpy(sample['ref_overlap']),
+        #         'correspondences': torch.from_numpy(sample['correspondences']),
+        #         'pose': torch.from_numpy(sample['transform_gt']),
+        #         'idx': torch.from_numpy(sample['idx']),
+        #         'corr_xyz': torch.from_numpy(corr_xyz),
+        #         'coords_src': torch.from_numpy(np.floor(sample['points_src'][:, :3] / self.config.voxel_size)),
+        #         'coords_tgt': torch.from_numpy(np.floor(sample['points_ref'][:, :3] / self.config.voxel_size)),
+        #         'feats_src': torch.from_numpy(np.hstack([sample['points_src'][:, :3]])),
+        #         'feats_tgt': torch.from_numpy(np.hstack([sample['points_ref'][:, :3]]))
+        #     }
+        # else:
+        sample_out = {
+            'src_xyz': torch.from_numpy(sample['points_src'][:, :3]),
+            'tgt_xyz': torch.from_numpy(sample['points_ref'][:, :3]),
+            'tgt_raw': torch.from_numpy(sample['points_raw'][:, :3]),
+            'src_overlap': torch.from_numpy(sample['src_overlap']),
+            'tgt_overlap': torch.from_numpy(sample['ref_overlap']),
+            'correspondences': torch.from_numpy(sample['correspondences']),
+            'pose': torch.from_numpy(sample['transform_gt']),
+            'idx': torch.from_numpy(sample['idx']),
+            'corr_xyz': torch.from_numpy(corr_xyz),
+        }
 
         return sample_out
 

@@ -199,13 +199,13 @@ class ModelNetHdf(Dataset, EasyDataset):
         sample_out = {
             'src_xyz': torch.from_numpy(sample['points_src'][:, :3]),
             'tgt_xyz': torch.from_numpy(sample['points_ref'][:, :3]),
-            'tgt_raw': torch.from_numpy(sample['points_raw'][:, :3]),
+            # 'tgt_raw': torch.from_numpy(sample['points_raw'][:, :3]),
             'src_overlap': torch.from_numpy(sample['src_overlap']),
             'tgt_overlap': torch.from_numpy(sample['ref_overlap']),
             'correspondences': torch.from_numpy(sample['correspondences']),
             'pose': torch.from_numpy(sample['transform_gt']),
             'idx': torch.from_numpy(sample['idx']),
-            'corr_xyz': torch.from_numpy(corr_xyz),
+            # 'corr_xyz': torch.from_numpy(corr_xyz),
         }
 
         return sample_out

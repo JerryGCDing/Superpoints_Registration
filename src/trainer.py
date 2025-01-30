@@ -70,12 +70,12 @@ class Trainer:
             self.logger.info('Validation interval set to {} steps'.format(self.opt.validate_every))
 
         # Run validation and exit if validate_every = 0
-        if self.opt.validate_every == 0:
+        if self.opt.validate_every == 0 and local_rank == 0:
             self._run_validation(model, val_loader, step=global_step, save_ckpt=False, num_gpus=num_gpus, rank=local_rank)
             return
 
         # Validation dry run for sanity checks
-        if self.opt.nb_sanity_val_steps > 0:
+        if self.opt.nb_sanity_val_steps > 0 and local_rank == 0:
             self._run_validation(model, val_loader, step=global_step,
                                  limit_steps=self.opt.nb_sanity_val_steps, save_ckpt=save_ckpt, num_gpus=num_gpus, rank=local_rank)
 

@@ -37,8 +37,8 @@ def main_worker(rank, n_gpus_per_node, opt, cfg):
         total_params = sum(param.numel() for param in model.parameters())
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-        print(f"Total model params: {total_params}")
-        print(f"Total trainable model params: {trainable_params}")
+        print(f"Total model params: {(total_params / 1000000):.6f}M")
+        print(f"Total trainable model params: {(trainable_params / 1000000):.6f}M")
 
         # Save config to log
         config_out_fname = os.path.join(opt.log_path, 'config.yaml')

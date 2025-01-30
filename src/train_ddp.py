@@ -15,16 +15,16 @@ import json
 from utils.comm import *
 
 
-def main(opt):
+def main(opt, cfg):
     torch.manual_seed(0)
     torch.cuda.manual_seed(0)
-    opt.world_size = int(os.environ["WORLD_SIZE"])
+    opt.world_size = torch.cuda.device_count()
     n_gpus_per_node = 1
 
-    mp.spawn(main_worker, nprocs=n_gpus_per_node, args=(n_gpus_per_node, opt))
+    mp.spawn(main_worker, nprocs=n_gpus_per_node, args=(n_gpus_per_node, opt, cfg))
 
 
-def main_worker(rank, n_gpus_per_node, opt):
+def main_worker(rank, n_gpus_per_node, opt, cfg):
     opt.local_rank = rank
 
     dist_url = 'env://12860'
@@ -51,7 +51,7 @@ def main_worker(rank, n_gpus_per_node, opt):
     train_loader = get_multi_dataloader(cfg.dataloader, phase='train', num_workers=opt.num_workers,
                                         num_gpus=opt.num_gpus)
     val_loader = get_multi_dataloader(cfg.dataloader, phase='val', num_workers=opt.num_workers, num_gpus=opt.num_gpus)
-    trainer = Trainer(opt, niter=cfg.niter, grad_clip=cfg.grad_clip)
+    trainer = Trainer(opt, num_epochs=cfg.num_epochs, grad_clip=cfg.grad_clip)
     trainer.fit(model, train_loader, val_loader, opt.num_gpus, opt.local_rank)
 
 
@@ -106,4 +106,4 @@ if __name__ == '__main__':
     #     out_fid.write(in_fid.read())
 
     # Run the main function
-    main(opt)
+    main(opt, cfg)

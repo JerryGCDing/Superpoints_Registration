@@ -22,14 +22,14 @@ class Trainer:
     Generic trainer class
     """
 
-    def __init__(self, opt, niter, grad_clip=0.0, **kwargs):
+    def __init__(self, opt, num_epochs, grad_clip=0.0, **kwargs):
         self.logger = logging.getLogger(__name__)
         self.opt = opt
         self.train_writer = SummaryWriter(os.path.join(self.opt.log_path, 'train'),flush_secs=10)
         self.val_writer = SummaryWriter(os.path.join(self.opt.log_path, 'val'),flush_secs=10)
         self.saver = CheckPointManager(os.path.join(self.opt.log_path, 'ckpt', 'model'),
                                        max_to_keep=6, keep_checkpoint_every_n_hours=3.0)
-        self.niter = niter
+        self.num_epochs = num_epochs
         self.grad_clip = grad_clip
         self.log_path = self.opt.log_path
 
@@ -80,7 +80,7 @@ class Trainer:
                                  limit_steps=self.opt.nb_sanity_val_steps, save_ckpt=save_ckpt, num_gpus=num_gpus, rank=local_rank)
 
         # Main training loop
-        for epoch in self.opt.num_epoch:  # Loop over epochs
+        for epoch in self.num_epochs:  # Loop over epochs
             if num_gpus > 1:
                 train_loader.sampler.set_epoch(epoch)
             if local_rank == 0:

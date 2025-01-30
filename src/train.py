@@ -50,6 +50,7 @@ if __name__ == '__main__':
     parser.add_argument('--summary_every', type=int, default=500,help='Interval to save tensorboard summaries')
     parser.add_argument('--validate_every', type=int, default=-1,help='Validation interval. Default: every epoch')
     parser.add_argument('--debug', action='store_true',help='If set, will enable autograd anomaly detection')
+    parser.add_argument('--num_gpus', type=int, default=1, help='Number of GPU for ddp')
     parser.add_argument('--num_workers', type=int, default=4,help='Number of worker threads for dataloader')
     parser.add_argument('--resume', type=str, help='Checkpoint to resume from')
     parser.add_argument('--nb_sanity_val_steps', type=int, default=2, help='Number of validation sanity steps to run before training.')
@@ -57,8 +58,6 @@ if __name__ == '__main__':
 
     opt = parser.parse_args()
 
-    # ddp set up
-    opt.num_gpus = int(os.environ['WORLD_SIZE']) if "WORLD_SIZE" in os.environ else 1
     # opt.local_rank = os.environ['LOCAL_RANK']
     # opt.local_rank = os.environ['LOCAL_RANK']
     if opt.num_gpus > 1:

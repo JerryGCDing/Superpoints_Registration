@@ -107,3 +107,8 @@ class ThreeDMatchDataset(Dataset, EasyDataset):
             self.transforms(data_pair)  # Apply data augmentation
 
         return data_pair
+
+    def __del__(self):
+        """Close file handle when the dataset is deleted."""
+        if self.pairs_data is not None:
+            self.pairs_data.close()

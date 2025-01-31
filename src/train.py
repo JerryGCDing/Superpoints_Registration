@@ -4,7 +4,7 @@ from cvhelpers.misc import prepare_logger
 from cvhelpers.torch_helpers import setup_seed
 from data_loaders import get_dataloader, get_multi_dataloader
 from models import get_model
-from trainer import Trainer
+from trainer_vanilla import Trainer
 from utils.misc import load_config
 import torch.multiprocessing as mp
 from torch.distributed import init_process_group

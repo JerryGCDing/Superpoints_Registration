@@ -38,8 +38,7 @@ class Trainer:
     def fit(self, model: GenericModel, train_loader, val_loader=None, num_gpus=1, local_rank=0):
         # Setup
         if torch.cuda.is_available():
-            torch.cuda.set_device(local_rank)
-            device = torch.device(f'cuda:{local_rank}')
+            device = torch.device('cuda')
         else:
             device = torch.device('cpu')
             self.logger.warning('Using CPU for training. This can be slow...')
@@ -61,6 +60,7 @@ class Trainer:
         # Configure anomaly detection
         torch.autograd.set_detect_anomaly(self.opt.debug)
 
+        epoch = 0
         loss_smooth = None
         stats_meter = StatsMeter()
         train_output, losses = {}, {}
@@ -72,26 +72,24 @@ class Trainer:
             self.logger.info('Validation interval set to {} steps'.format(self.opt.validate_every))
 
         # Run validation and exit if validate_every = 0
-        if self.opt.validate_every == 0 and local_rank == 0:
+        if self.opt.validate_every == 0:
             self._run_validation(model, val_loader, step=global_step, save_ckpt=False, num_gpus=num_gpus,
                                  rank=local_rank)
-            self.logger.info('Validation dry run passed')
             return
 
         # Validation dry run for sanity checks
-        if self.opt.nb_sanity_val_steps > 0 and local_rank == 0:
+        if self.opt.nb_sanity_val_steps > 0:
             self._run_validation(model, val_loader, step=global_step,
                                  limit_steps=self.opt.nb_sanity_val_steps, save_ckpt=save_ckpt, num_gpus=num_gpus,
                                  rank=local_rank)
-            self.logger.info('Validation dry run passed')
 
         # Main training loop
         for epoch in range(self.num_epochs):  # Loop over epochs
             if num_gpus > 1:
                 train_loader.sampler.set_epoch(epoch)
-            if local_rank == 0:
-                self.logger.info('Starting epoch {} (steps {} - {})'.format(
-                    epoch, global_step, global_step + len(train_loader)))
+            self.logger.info('Starting epoch {} (steps {} - {})'.format(
+                epoch, global_step, global_step + len(train_loader)))
+            tbar = tqdm(total=len(train_loader), ncols=80, smoothing=0)
 
             # Train
             model.train()
@@ -166,49 +164,53 @@ class Trainer:
                         batch['item'], batch['src_path'], batch['tgt_path']))
                 else:
                     loss_smooth = 0.99 * loss_smooth + 0.01 * losses['total'].item()
+                tbar.set_description('Loss:{:.3g}'.format(loss_smooth))
+
+                # except Exception as inst:
+                #     # for i in range(len(batch['src_xyz'])):
+                #     #     print(batch['src_xyz'][i].shape)
+                #     exc_type, exc_obj, exc_tb = sys.exc_info()
+                #     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                #     self.logger.error(f'{exc_type} at {fname}:{exc_tb.tb_lineno} - {inst}')
+                #     self.logger.debug(traceback.format_exc())
+
+                tbar.update(1)
+                # torch.cuda.empty_cache()
 
                 if global_step == first_step + 1 or global_step % self.opt.summary_every == 0:
                     if num_gpus > 1:
-                        if local_rank == 0:
-                            self.logger.info(
-                                f"Epoch {epoch}/Step {global_step}: losses['feature']: {losses['feature']}; losses['T']; "
-                                f"{losses['T']}; losses['overlap']: {losses['overlap']}")
-                            model.module.train_summary_fn(writer=self.train_writer,
-                                                          step=global_step,
-                                                          data_batch=batch,
-                                                          train_output=train_output,
-                                                          train_losses=losses)
+                        model.module.train_summary_fn(writer=self.train_writer, step=global_step,
+                                                      data_batch=batch, train_output=train_output, train_losses=losses)
                     else:
-                        self.logger.info(
-                            f"Epoch {epoch}/Step {global_step}: losses['feature']: {losses['feature']}; losses['T']; "
-                            f"{losses['T']}; losses['overlap']: {losses['overlap']}")
                         model.train_summary_fn(writer=self.train_writer, step=global_step,
                                                data_batch=batch, train_output=train_output, train_losses=losses)
 
+                if global_step % self.opt.validate_every == 0:
+                    tbar.close()  # we turn off the training progress bar since certain
+                    # environments (e.g. Pycharm) do not handle stacking well
+
                     # Run validation, and save checkpoint.
-            if local_rank == 0 and epoch % self.opt.validate_every == 0:
-                self._run_validation(model,
-                                     val_loader,
-                                     step=global_step,
-                                     save_ckpt=save_ckpt,
-                                     num_gpus=num_gpus,
-                                     rank=local_rank)
+                    self._run_validation(model, val_loader, step=global_step, save_ckpt=save_ckpt, num_gpus=num_gpus,
+                                         rank=local_rank)
+                    tbar = tqdm(total=len(train_loader), ncols=80, initial=batch_idx + 1,
+                                desc=tbar.desc[:-2])
 
             if num_gpus > 1:
                 model.module.train_epoch_end()
             else:
                 model.train_epoch_end()
+            tbar.close()
 
             losses_dict = {k: stats_meter[k].avg for k in stats_meter}
-            if local_rank == 0:
-                log_str = 'Epoch {} complete in {}. Average train losses: '.format(
-                    epoch, pretty_time_delta(time.perf_counter() - t_epoch_start))
-                log_str += metrics_to_string(losses_dict) + '\n'
-                self.logger.info(log_str)
+            log_str = 'Epoch {} complete in {}. Average train losses: '.format(
+                epoch, pretty_time_delta(time.perf_counter() - t_epoch_start))
+            log_str += metrics_to_string(losses_dict) + '\n'
+            self.logger.info(log_str)
             stats_meter.clear()
 
-        if local_rank == 0:
-            self.logger.info('Ending training. Number of training steps = {}'.format(global_step))
+            epoch += 1
+
+        self.logger.info('Ending training. Number of training steps = {}'.format(global_step))
 
     def test(self, model: GenericModel, test_loader):
         # Setup

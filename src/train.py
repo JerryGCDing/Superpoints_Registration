@@ -62,7 +62,6 @@ if __name__ == '__main__':
     opt = parser.parse_args()
 
     # opt.local_rank = os.environ['LOCAL_RANK']
-    opt.local_rank = int(os.environ["RANK"])
     if opt.num_gpus > 1:
         # init ddp
         torch.cuda.set_device(opt.local_rank)

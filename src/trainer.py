@@ -187,13 +187,13 @@ class Trainer:
                                                data_batch=batch, train_output=train_output, train_losses=losses)
 
                     # Run validation, and save checkpoint.
-                    if local_rank == 0:
-                        self._run_validation(model,
-                                             val_loader,
-                                             step=global_step,
-                                             save_ckpt=save_ckpt,
-                                             num_gpus=num_gpus,
-                                             rank=local_rank)
+            if local_rank == 0 and epoch % self.opt.validate_every == 0:
+                self._run_validation(model,
+                                     val_loader,
+                                     step=global_step,
+                                     save_ckpt=save_ckpt,
+                                     num_gpus=num_gpus,
+                                     rank=local_rank)
 
             if num_gpus > 1:
                 model.module.train_epoch_end()

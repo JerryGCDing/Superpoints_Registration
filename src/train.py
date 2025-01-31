@@ -11,6 +11,8 @@ from torch.distributed import init_process_group
 import os
 import torch
 import json
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 from utils.comm import *
 

@@ -33,11 +33,11 @@ def main(opt):
     config_out_fname = os.path.join(opt.log_path, 'config.yaml')
     with open(opt.config, 'r') as in_fid, open(config_out_fname, 'w') as out_fid:
         out_fid.write(f'# Original file name: {opt.config}\n')
-        out_fid.write(f'# Total parameters: {total_params}\n')
-        out_fid.write(f'# Total trainable parameters: {trainable_params}\n')
+        out_fid.write(f'# Total parameters: {(total_params / 1000000):.6f}M\n')
+        out_fid.write(f'# Total trainable parameters: {(trainable_params / 1000000):.6f}M\n')
         out_fid.write(in_fid.read())
 
-    trainer = Trainer(opt, niter=cfg.niter, grad_clip=cfg.grad_clip)
+    trainer = Trainer(opt, num_epochs=cfg.num_epochs, grad_clip=cfg.grad_clip)
     trainer.fit(model, train_loader, val_loader, opt.num_gpus, opt.local_rank)
 
 

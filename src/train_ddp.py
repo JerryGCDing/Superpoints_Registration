@@ -48,6 +48,7 @@ def main_worker(rank, n_gpus_per_node, opt, cfg):
             out_fid.write(f'# Total trainable parameters: {(trainable_params / 1000000):.6f}M\n')
             out_fid.write(in_fid.read())
 
+    opt.num_workers //= opt.world_size
     train_loader = get_multi_dataloader(cfg.dataloader, phase='train', num_workers=opt.num_workers,
                                         num_gpus=opt.num_gpus)
     val_loader = get_multi_dataloader(cfg.dataloader, phase='val', num_workers=opt.num_workers, num_gpus=opt.num_gpus)

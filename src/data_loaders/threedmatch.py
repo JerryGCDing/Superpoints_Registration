@@ -50,23 +50,21 @@ class ThreeDMatchDataset(Dataset, EasyDataset):
 
         self.cfg = cfg
 
-        if os.path.exists(os.path.join(self.base_dir, pairs_fname)):
-            self.pairs_data = h5py.File(os.path.join(self.base_dir, pairs_fname), 'r')
-        else:
-            self.logger.warning(
-                'Overlapping regions not precomputed. '
-                'Run data_processing/compute_overlap_3dmatch.py to speed up data loading')
-            self.pairs_data = None
+        self.pairs_data_path = os.path.join(self.base_dir, pairs_fname) if os.path.exists(
+            os.path.join(self.base_dir, pairs_fname)) else None
+        self.pairs_data = None
 
         self.search_voxel_size = cfg.overlap_radius
         self.transforms = transforms
         self.phase = phase
 
+    def _load_pairs_data(self):
+        self.pairs_data = h5py.File(self.pairs_data_path, 'r')
+
     def __len__(self):
         return len(self.infos['rot'])
 
     def __getitem__(self, item):
-
         # get transformation and point cloud
         pose = se3_init(self.infos['rot'][item], self.infos['trans'][item])  # transforms src to tgt
         pose_inv = se3_inv(pose)
@@ -75,6 +73,9 @@ class ThreeDMatchDataset(Dataset, EasyDataset):
         src_xyz = torch.load(os.path.join(self.base_dir, src_path), map_location='cpu')
         tgt_xyz = torch.load(os.path.join(self.base_dir, tgt_path), map_location='cpu')
         overlap_p = self.infos['overlap'][item]
+
+        if self.pairs_data is None and self.pairs_data_path is not None:
+            self._load_pairs_data()
 
         # Get overlap region
         if self.pairs_data is None:

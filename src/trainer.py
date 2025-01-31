@@ -15,7 +15,9 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from utils.comm import *
 
 import os
+
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64"
+
 
 class Trainer:
     """
@@ -25,8 +27,8 @@ class Trainer:
     def __init__(self, opt, num_epochs, grad_clip=0.0, **kwargs):
         self.logger = logging.getLogger(__name__)
         self.opt = opt
-        self.train_writer = SummaryWriter(os.path.join(self.opt.log_path, 'train'),flush_secs=10)
-        self.val_writer = SummaryWriter(os.path.join(self.opt.log_path, 'val'),flush_secs=10)
+        self.train_writer = SummaryWriter(os.path.join(self.opt.log_path, 'train'), flush_secs=10)
+        self.val_writer = SummaryWriter(os.path.join(self.opt.log_path, 'val'), flush_secs=10)
         self.saver = CheckPointManager(os.path.join(self.opt.log_path, 'ckpt', 'model'),
                                        max_to_keep=6, keep_checkpoint_every_n_hours=3.0)
         self.num_epochs = num_epochs
@@ -47,7 +49,7 @@ class Trainer:
         model.set_trainer(self)
         if num_gpus > 1:
             model = DDP(model, device_ids=[local_rank], output_device=local_rank)
-        
+
         # Initialize checkpoint manager and resume from checkpoint if necessary
         if self.opt.resume is not None:
             first_step = global_step = \
@@ -55,7 +57,7 @@ class Trainer:
                                 optimizer=model.optimizer, scheduler=model.scheduler)
         else:
             first_step = global_step = 0
-        
+
         # Configure anomaly detection
         torch.autograd.set_detect_anomaly(self.opt.debug)
 
@@ -72,16 +74,20 @@ class Trainer:
 
         # Run validation and exit if validate_every = 0
         if self.opt.validate_every == 0 and local_rank == 0:
-            self._run_validation(model, val_loader, step=global_step, save_ckpt=False, num_gpus=num_gpus, rank=local_rank)
+            self._run_validation(model, val_loader, step=global_step, save_ckpt=False, num_gpus=num_gpus,
+                                 rank=local_rank)
+            self.logger.info('Validation dry run passed')
             return
 
         # Validation dry run for sanity checks
         if self.opt.nb_sanity_val_steps > 0 and local_rank == 0:
             self._run_validation(model, val_loader, step=global_step,
-                                 limit_steps=self.opt.nb_sanity_val_steps, save_ckpt=save_ckpt, num_gpus=num_gpus, rank=local_rank)
+                                 limit_steps=self.opt.nb_sanity_val_steps, save_ckpt=save_ckpt, num_gpus=num_gpus,
+                                 rank=local_rank)
+            self.logger.info('Validation dry run passed')
 
         # Main training loop
-        for epoch in self.num_epochs:  # Loop over epochs
+        for epoch in range(self.num_epochs):  # Loop over epochs
             if num_gpus > 1:
                 train_loader.sampler.set_epoch(epoch)
             if local_rank == 0:
@@ -117,9 +123,9 @@ class Trainer:
                                     losses['total'].backward()
                             else:
                                 losses['total'].backward()
-                        
+
                         if self.grad_clip > 0:
-                                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=self.grad_clip)
+                            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=self.grad_clip)
 
                         if model.module.optimizer is not None:
                             model.module.optimizer.step()
@@ -235,7 +241,8 @@ class Trainer:
 
         model.train()
 
-    def _run_validation(self, model: GenericModel, val_loader, step, limit_steps=-1, save_ckpt=True, num_gpus=1, rank=0):
+    def _run_validation(self, model: GenericModel, val_loader, step, limit_steps=-1, save_ckpt=True, num_gpus=1,
+                        rank=0):
         """Run validation on data from the validation data loader
 
         Args:
@@ -296,13 +303,12 @@ class Trainer:
             log_str = '\n'.join(log_str)
             self.logger.info(log_str)
 
-        if save_ckpt and rank==0:
+        if save_ckpt and rank == 0:
             if num_gpus > 1:
                 self.saver.save(model.module, step, val_score,
                                 optimizer=model.module.optimizer, scheduler=model.module.scheduler)
             else:
                 self.saver.save(model, step, val_score,
-                            optimizer=model.optimizer, scheduler=model.scheduler)
+                                optimizer=model.optimizer, scheduler=model.scheduler)
 
         model.train()
-

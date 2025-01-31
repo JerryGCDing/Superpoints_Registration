@@ -60,7 +60,7 @@ class Trainer:
         # Configure anomaly detection
         torch.autograd.set_detect_anomaly(self.opt.debug)
 
-        epoch = 0
+        epoch = first_step + 1
         loss_smooth = None
         stats_meter = StatsMeter()
         train_output, losses = {}, {}
@@ -84,7 +84,7 @@ class Trainer:
                                  rank=local_rank)
 
         # Main training loop
-        for epoch in range(self.num_epochs):  # Loop over epochs
+        while epoch < self.num_epochs:  # Loop over epochs
             if num_gpus > 1:
                 train_loader.sampler.set_epoch(epoch)
             self.logger.info('Starting epoch {} (steps {} - {})'.format(

@@ -19,9 +19,9 @@ def main(opt, cfg):
     torch.manual_seed(0)
     torch.cuda.manual_seed(0)
     opt.world_size = torch.cuda.device_count()
-    n_gpus_per_node = 1
+    n_gpus_per_node = torch.cuda.device_count()
 
-    mp.spawn(main_worker, nprocs=n_gpus_per_node, args=(n_gpus_per_node, opt, cfg))
+    mp.spawn(main_worker, nprocs=opt.world_size, args=(n_gpus_per_node, opt, cfg))
 
 
 def main_worker(rank, n_gpus_per_node, opt, cfg):

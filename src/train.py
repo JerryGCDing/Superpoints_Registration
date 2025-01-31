@@ -50,7 +50,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev', action='store_true',help='If true, will ignore logdir and log to ../logdev instead')
     parser.add_argument('--testdev', action='store_true',help='If true, will ignore logdir and log to ../logtestdev instead')
     parser.add_argument('--name', type=str, help='Experiment name (used to name output directory')
-    parser.add_argument('--summary_every', type=int, default=500,help='Interval to save tensorboard summaries')
+    parser.add_argument('--summary_every', type=int, default=100,help='Interval to save tensorboard summaries')
     parser.add_argument('--validate_every', type=int, default=-1,help='Validation interval. Default: every epoch')
     parser.add_argument('--debug', action='store_true',help='If set, will enable autograd anomaly detection')
     parser.add_argument('--num_gpus', type=int, default=1, help='Number of GPU for ddp')

@@ -171,12 +171,18 @@ class Trainer:
                 if global_step == first_step + 1 or global_step % self.opt.summary_every == 0:
                     if num_gpus > 1:
                         if local_rank == 0:
+                            self.logger.info(
+                                f"Epoch {epoch}/Step {global_step}: losses['feature']: {losses['feature']}; losses['T']; "
+                                f"{losses['T']}; losses['overlap']: {losses['overlap']}")
                             model.module.train_summary_fn(writer=self.train_writer,
                                                           step=global_step,
                                                           data_batch=batch,
                                                           train_output=train_output,
                                                           train_losses=losses)
                     else:
+                        self.logger.info(
+                            f"Epoch {epoch}/Step {global_step}: losses['feature']: {losses['feature']}; losses['T']; "
+                            f"{losses['T']}; losses['overlap']: {losses['overlap']}")
                         model.train_summary_fn(writer=self.train_writer, step=global_step,
                                                data_batch=batch, train_output=train_output, train_losses=losses)
 

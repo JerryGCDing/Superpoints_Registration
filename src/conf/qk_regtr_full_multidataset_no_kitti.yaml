@@ -2,8 +2,8 @@ general:
     expt_name: qk_regtr_full
 
 dataloader:
-    train_batch_size: 4
-    val_batch_size: 4
+    train_batch_size: 8
+    val_batch_size: 1
     test_batch_size: 1
     datasets:
         3dmatch:

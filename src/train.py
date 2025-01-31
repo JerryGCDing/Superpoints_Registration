@@ -70,18 +70,13 @@ if __name__ == '__main__':
         print('init ddp done')
 
     # Override config if --resume is passed
-    if opt.config is None:
-        if opt.resume is None or not os.path.exists(opt.resume):
-            print('--config needs to be supplied unless resuming from checkpoint')
-            exit(-1)
+    if opt.resume is not None:
+        resume_folder = opt.resume if os.path.isdir(opt.resume) else os.path.dirname(opt.resume)
+        if os.path.exists(opt.config):
+            print(f'Using config file from checkpoint directory: {opt.config}')
         else:
-            resume_folder = opt.resume if os.path.isdir(opt.resume) else os.path.dirname(opt.resume)
-            opt.config = os.path.normpath(os.path.join(resume_folder, '../config.yaml'))
-            if os.path.exists(opt.config):
-                print(f'Using config file from checkpoint directory: {opt.config}')
-            else:
-                print('Config not found in resume directory')
-                exit(-2)
+            print('Config not found in resume directory')
+            exit(-2)
 
     cfg = EasyDict(load_config(opt.config))
 

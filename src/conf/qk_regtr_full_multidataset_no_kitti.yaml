@@ -40,7 +40,7 @@ dataloader:
             trans_mag: 0.5
 
 train_options:
-    num_epochs: 100
+    num_epochs: 30
 
 solver:
     optimizer: AdamW

@@ -51,16 +51,15 @@ class Trainer:
 
         # Initialize checkpoint manager and resume from checkpoint if necessary
         if self.opt.resume is not None:
-            first_step = global_step = \
-                self.saver.load(self.opt.resume, model,
-                                optimizer=model.optimizer, scheduler=model.scheduler)
+            epoch, global_step = self.saver.load(self.opt.resume, model, optimizer=model.optimizer,
+                                                 scheduler=model.scheduler)
         else:
-            first_step = global_step = 0
+            epoch = 0
+            global_step = 0
 
         # Configure anomaly detection
         torch.autograd.set_detect_anomaly(self.opt.debug)
 
-        epoch = first_step + 1
         loss_smooth = None
         stats_meter = StatsMeter()
         train_output, losses = {}, {}
@@ -73,13 +72,13 @@ class Trainer:
 
         # Run validation and exit if validate_every = 0
         if self.opt.validate_every == 0:
-            self._run_validation(model, val_loader, step=global_step, save_ckpt=False, num_gpus=num_gpus,
-                                 rank=local_rank)
+            self._run_validation(model, val_loader, epoch=epoch, global_step=global_step, save_ckpt=False,
+                                 num_gpus=num_gpus, rank=local_rank)
             return
 
         # Validation dry run for sanity checks
         if self.opt.nb_sanity_val_steps > 0:
-            self._run_validation(model, val_loader, step=global_step,
+            self._run_validation(model, val_loader, epoch=epoch, global_step=global_step,
                                  limit_steps=self.opt.nb_sanity_val_steps, save_ckpt=save_ckpt, num_gpus=num_gpus,
                                  rank=local_rank)
 
@@ -87,8 +86,7 @@ class Trainer:
         while epoch < self.num_epochs:  # Loop over epochs
             if num_gpus > 1:
                 train_loader.sampler.set_epoch(epoch)
-            self.logger.info('Starting epoch {} (steps {} - {})'.format(
-                epoch, global_step, global_step + len(train_loader)))
+            self.logger.info('Starting epoch {}'.format(epoch))
             tbar = tqdm(total=len(train_loader), ncols=80, smoothing=0)
 
             # Train
@@ -101,14 +99,11 @@ class Trainer:
             t_epoch_start = time.perf_counter()
 
             for batch_idx, batch in enumerate(train_loader):
-
-                global_step += 1
-
                 # train step
                 # try:
                 batch = all_to_device(batch, device)
                 if num_gpus > 1:
-                    train_output, losses = model.module.training_step(batch, global_step)
+                    train_output, losses = model.module.training_step(batch, batch_idx)
                     if model.module.optimizer_handled_by_trainer:
                         if model.module.optimizer is not None:
                             model.module.optimizer.zero_grad()
@@ -128,7 +123,7 @@ class Trainer:
                             model.module.optimizer.step()
                             model.module.scheduler.step()
                 else:
-                    train_output, losses = model.training_step(batch, global_step)
+                    train_output, losses = model.training_step(batch, batch_idx)
 
                     if model.optimizer_handled_by_trainer:
                         if model.optimizer is not None:
@@ -177,7 +172,7 @@ class Trainer:
                 tbar.update(1)
                 # torch.cuda.empty_cache()
 
-                if global_step == first_step + 1 or global_step % self.opt.summary_every == 0:
+                if batch_idx % self.opt.summary_every == 0:
                     if num_gpus > 1:
                         model.module.train_summary_fn(writer=self.train_writer, step=global_step,
                                                       data_batch=batch, train_output=train_output, train_losses=losses)
@@ -185,15 +180,13 @@ class Trainer:
                         model.train_summary_fn(writer=self.train_writer, step=global_step,
                                                data_batch=batch, train_output=train_output, train_losses=losses)
 
-                if global_step % self.opt.validate_every == 0:
-                    tbar.close()  # we turn off the training progress bar since certain
-                    # environments (e.g. Pycharm) do not handle stacking well
+            tbar.close()  # we turn off the training progress bar since certain
+            # environments (e.g. Pycharm) do not handle stacking well
 
-                    # Run validation, and save checkpoint.
-                    self._run_validation(model, val_loader, step=global_step, save_ckpt=save_ckpt, num_gpus=num_gpus,
-                                         rank=local_rank)
-                    tbar = tqdm(total=len(train_loader), ncols=80, initial=batch_idx + 1,
-                                desc=tbar.desc[:-2])
+            # Run validation, and save checkpoint.
+            self._run_validation(model, val_loader, epoch=epoch, global_step=global_step, save_ckpt=save_ckpt,
+                                 num_gpus=num_gpus, rank=local_rank)
+            tbar = tqdm(total=len(train_loader), ncols=80, initial=batch_idx + 1, desc=tbar.desc[:-2])
 
             if num_gpus > 1:
                 model.module.train_epoch_end()
@@ -248,8 +241,8 @@ class Trainer:
 
         model.train()
 
-    def _run_validation(self, model: GenericModel, val_loader, step, limit_steps=-1, save_ckpt=True, num_gpus=1,
-                        rank=0):
+    def _run_validation(self, model: GenericModel, val_loader, epoch, global_step, limit_steps=-1, save_ckpt=True,
+                        num_gpus=1, rank=0):
         """Run validation on data from the validation data loader
 
         Args:
@@ -270,7 +263,7 @@ class Trainer:
             self.logger.info(f'Performing validation dry run with {num_steps} steps')
         else:
             num_steps = len(val_loader)
-            self.logger.info(f'Running validation (step {step})...')
+            self.logger.info(f'Running validation (epoch {epoch})...')
 
         model.eval()
         val_out_all = []
@@ -296,10 +289,10 @@ class Trainer:
 
             if num_gpus > 1:
                 val_score, val_outputs = model.module.validation_epoch_end(val_out_all)
-                model.module.validation_summary_fn(self.val_writer, step, val_outputs)
+                model.module.validation_summary_fn(self.val_writer, global_step, val_outputs)
             else:
                 val_score, val_outputs = model.validation_epoch_end(val_out_all)
-                model.validation_summary_fn(self.val_writer, step, val_outputs)
+                model.validation_summary_fn(self.val_writer, global_step, val_outputs)
 
             synchronize()
             log_str = ['Validation ended:']
@@ -312,10 +305,10 @@ class Trainer:
 
         if save_ckpt and rank == 0:
             if num_gpus > 1:
-                self.saver.save(model.module, step, val_score,
+                self.saver.save(model.module, epoch, global_step, val_score,
                                 optimizer=model.module.optimizer, scheduler=model.module.scheduler)
             else:
-                self.saver.save(model, step, val_score,
+                self.saver.save(model, epoch, global_step, val_score,
                                 optimizer=model.optimizer, scheduler=model.scheduler)
 
         model.train()

@@ -114,7 +114,7 @@ class CheckPointManager(object):
         self._checkpoints_buffer = []  # Those which might still be deleted
         self._next_save_time = time.time()
         self._best_score = None
-        self._best_step = None
+        self._best_epoch = None
 
         if save_path is not None:
             self._ckpt_dir = os.path.dirname(save_path)
@@ -127,12 +127,13 @@ class CheckPointManager(object):
             self._save_path = None
             self._checkpoints_fname = None
 
-    def _save_checkpoint(self, step, model, score, **kwargs):
-        save_name = self._save_path.format(step)
+    def _save_checkpoint(self, epoch, global_step, model, score, **kwargs):
+        save_name = self._save_path.format(epoch)
 
         model_state_dict = {k: v for (k, v) in model.state_dict().items() if not v.is_sparse}
         state = {'state_dict': model_state_dict,
-                 'step': step}
+                 'epoch': epoch,
+                 'global_step': global_step}
         for k in kwargs:
             if getattr(kwargs[k], 'state_dict', None) is not None:
                 state[k] = kwargs[k].state_dict()
@@ -142,17 +143,17 @@ class CheckPointManager(object):
         torch.save(state, save_name)
         self._logger.info('Saved checkpoint: {}'.format(save_name))
 
-        self._checkpoints_buffer.append((save_name, time.time(), step))
+        self._checkpoints_buffer.append((save_name, time.time(), epoch))
 
         if self._best_score is None or np.all(np.array(score) >= np.array(self._best_score)):
             # Remove previous best checkpoint if no longer best
             if self._best_score is not None and \
-                    self._best_step not in [c[2] for c in self._checkpoints_buffer] and \
-                    self._best_step not in [c[2] for c in self._checkpoints_permanent]:
-                os.remove(self._save_path.format(self._best_step))
+                    self._best_epoch not in [c[2] for c in self._checkpoints_buffer] and \
+                    self._best_epoch not in [c[2] for c in self._checkpoints_permanent]:
+                os.remove(self._save_path.format(self._best_epoch))
 
             self._best_score = score
-            self._best_step = step
+            self._best_epoch = epoch
             self._logger.info('Checkpoint is current best, score={}'.format(
                 np.array_str(np.array(self._best_score), precision=3)))
 
@@ -165,30 +166,31 @@ class CheckPointManager(object):
                 self._next_save_time = to_remove[1] + self._keep_checkpoint_every_n_hours * 3600
             else:
                 # Remove old checkpoint unless it's the best
-                if self._best_step != to_remove[2]:
+                if self._best_epoch != to_remove[2]:
                     os.remove(to_remove[0])
 
     def _update_checkpoints_file(self):
         checkpoints = [os.path.basename(c[0]) for c in self._checkpoints_permanent + self._checkpoints_buffer]
         with open(self._checkpoints_fname, 'w') as fid:
-            fid.write('Best step: {}'.format(self._best_step) + '\n')
+            fid.write('Best epoch: {}'.format(self._best_epoch) + '\n')
             fid.write('\n'.join(checkpoints))
 
 
-    def save(self, model: torch.nn.Module, step: int, score: float = 0.0,
+    def save(self, model: torch.nn.Module, epoch: int, global_step: int, score: float = 0.0,
              **kwargs):
         """Save model checkpoint to file
 
         Args:
             model: Torch model
-            step (int): Step, model will be saved as model-[step].pth
+            epoch:
+            global_step (int): Step, model will be saved as model-[step].pth
             score (float, optional): To determine which model is the best (i.e. highest score)
             **kwargs: For saving arbitrary data, e.g. for optimizer or scheduler.
         """
         if self._save_path is None:
             raise AssertionError('Checkpoint manager must be initialized with save path for save().')
 
-        self._save_checkpoint(step, model, score, **kwargs)
+        self._save_checkpoint(epoch, global_step, model, score, **kwargs)
         self._remove_old_checkpoints()
         self._update_checkpoints_file()
 
@@ -216,7 +218,8 @@ class CheckPointManager(object):
         else:
             state = torch.load(save_path)
 
-        step = state.get('step', 0)
+        global_step = state.get('global_step', 0)
+        epoch = state.get('epoch', 0)
 
         if 'state_dict' in state and model is not None:
             retval = model.load_state_dict(state['state_dict'], strict=False)
@@ -239,7 +242,7 @@ class CheckPointManager(object):
 
 
         self._logger.info('Loaded models from {}'.format(save_path))
-        return step
+        return epoch, global_step
 
 
 class DDPCheckPointManager(object):

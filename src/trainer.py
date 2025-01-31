@@ -36,11 +36,12 @@ class Trainer:
     def fit(self, model: GenericModel, train_loader, val_loader=None, num_gpus=1, local_rank=0):
         # Setup
         if torch.cuda.is_available():
-            device = torch.device('cuda')
+            torch.cuda.set_device(local_rank)
+            device = torch.device(f'cuda:{local_rank}')
         else:
             device = torch.device('cpu')
             self.logger.warning('Using CPU for training. This can be slow...')
-        
+
         model.to(device)
         model.configure_optimizers()
         model.set_trainer(self)

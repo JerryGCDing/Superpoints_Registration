@@ -218,8 +218,8 @@ class CheckPointManager(object):
         else:
             state = torch.load(save_path)
 
-        global_step = state.get('global_step', 0)
-        epoch = state.get('epoch', 0)
+        global_step = state.get('global_step', -1) + 1
+        epoch = state.get('epoch', -1) + 1
 
         if 'state_dict' in state and model is not None:
             retval = model.load_state_dict(state['state_dict'], strict=False)

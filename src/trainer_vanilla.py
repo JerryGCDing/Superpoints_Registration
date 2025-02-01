@@ -181,6 +181,8 @@ class Trainer:
                         model.train_summary_fn(writer=self.train_writer, step=global_step,
                                                data_batch=batch, train_output=train_output, train_losses=losses)
 
+                del batch, train_output, losses
+
             tbar.close()  # we turn off the training progress bar since certain
             # environments (e.g. Pycharm) do not handle stacking well
 

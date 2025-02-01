@@ -183,6 +183,8 @@ class Trainer:
                         model.train_summary_fn(writer=self.train_writer, step=global_step,
                                                data_batch=batch, train_output=train_output, train_losses=losses)
 
+                del batch, train_output, losses
+
                     # Run validation, and save checkpoint.
             if local_rank == 0 and epoch % self.opt.validate_every == 0:
                 self._run_validation(model, val_loader, epoch=epoch, global_step=global_step, save_ckpt=save_ckpt,

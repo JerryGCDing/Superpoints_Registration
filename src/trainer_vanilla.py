@@ -99,6 +99,7 @@ class Trainer:
             t_epoch_start = time.perf_counter()
 
             for batch_idx, batch in enumerate(train_loader):
+                global_step += 1
                 # train step
                 # try:
                 batch = all_to_device(batch, device)
@@ -203,7 +204,7 @@ class Trainer:
 
             epoch += 1
 
-        self.logger.info('Ending training. Number of training steps = {}'.format(global_step))
+        self.logger.info('Ending training. Number of training epochs = {}'.format(epoch + 1))
 
     def test(self, model: GenericModel, test_loader):
         # Setup

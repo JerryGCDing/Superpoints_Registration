@@ -182,7 +182,6 @@ class Trainer:
                                                data_batch=batch, train_output=train_output, train_losses=losses)
 
                 del batch, train_output, losses
-                torch.cuda.empty_cache()
 
             tbar.close()  # we turn off the training progress bar since certain
             # environments (e.g. Pycharm) do not handle stacking well
@@ -204,6 +203,7 @@ class Trainer:
             log_str += metrics_to_string(losses_dict) + '\n'
             self.logger.info(log_str)
             stats_meter.clear()
+            torch.cuda.empty_cache()
 
             epoch += 1
 

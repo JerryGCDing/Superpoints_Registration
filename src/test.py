@@ -70,7 +70,7 @@ def main():
     test_loader = get_dataloader(cfg, phase='test')
     Model = get_model(cfg.model)
     model = Model(cfg)
-    trainer = Trainer(opt, niter=cfg.niter, grad_clip=cfg.grad_clip)
+    trainer = Trainer(opt, num_epochs=cfg.num_epochs, grad_clip=cfg.grad_clip)
     trainer.test(model, test_loader)
 
 

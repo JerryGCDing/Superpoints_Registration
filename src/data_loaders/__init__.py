@@ -133,11 +133,12 @@ def get_multi_dataloader(cfg, phase, num_workers=0, num_gpus=1):
 
 def get_benchmark_dataset(cfg, benchmark, num_workers):
     if benchmark in ['3DMatch', '3DLoMatch']:
-        cfg['3dmatch'].benchmark = benchmark
-        dataset = ThreeDMatchDataset(cfg=cfg['3dmatch'], phase='test', transforms=None)
+        cfg.datasets['3dmatch'].benchmark = benchmark
+        dataset = ThreeDMatchDataset(cfg=cfg.datasets['3dmatch'], phase='test', transforms=None)
     elif benchmark in ['ModelNet', 'ModelLoNet']:
-        cfg['modelnet'].benchmark = benchmark
-        dataset = get_test_datasets(cfg['modelnet'])
+        cfg.datasets['modelnet'].benchmark = benchmark
+        cfg.datasets['modelnet'].partial = [0.7, 0.7] if benchmark == 'ModelNet' else [0.5, 0.5]
+        dataset = get_test_datasets(cfg.datasets['modelnet'])
     else:
         raise NotImplementedError
 

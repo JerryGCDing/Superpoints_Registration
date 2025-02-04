@@ -167,7 +167,7 @@ class RandomSwap:
     def __call__(self, data):
         if random.random() > 0.5:
             data['src_xyz'], data['tgt_xyz'] = data['tgt_xyz'], data['src_xyz']
-            # data['src_overlap'], data['tgt_overlap'] = data['tgt_overlap'], data['src_overlap']
+            data['src_overlap'], data['tgt_overlap'] = data['tgt_overlap'], data['src_overlap']
             if 'correspondences' in data:
                 data['correspondences'] = torch.stack([data['correspondences'][1], data['correspondences'][0]])
             if 'corr_xyz' in data:

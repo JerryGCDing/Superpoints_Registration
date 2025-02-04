@@ -98,8 +98,8 @@ class ThreeDMatchDataset(Dataset, EasyDataset):
             'correspondences': torch.from_numpy(src_tgt_corr),  # indices
             'pose': torch.from_numpy(pose).float(),
             'idx': item,
-            # 'src_path': src_path,
-            # 'tgt_path': tgt_path,
+            # 'src_path': src_path,  # Uncomment for test
+            # 'tgt_path': tgt_path,  # Uncomment for test
             # 'overlap_p': overlap_p,
         }
         # print("torch tensor: ", data_pair['src_overlap'].shape, data_pair['tgt_overlap'].shape)

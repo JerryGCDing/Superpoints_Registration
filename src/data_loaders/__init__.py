@@ -1,3 +1,5 @@
+from yaml import parse
+
 from .transforms import *
 from .modelnet import *
 from .collate_functions import collate_pair, collate_tensors
@@ -127,3 +129,22 @@ def get_multi_dataloader(cfg, phase, num_workers=0, num_gpus=1):
                                                                 drop_last=True) if num_gpus > 1 else None
     )
     return data_loader
+
+
+def get_benchmark_dataset(cfg, benchmark, num_workers):
+    if benchmark in ['3DMatch', '3DLoMatch']:
+        cfg['3dmatch'].benchmark = benchmark
+        dataset = ThreeDMatchDataset(cfg=cfg['3dmatch'], phase='test', transforms=None)
+    elif benchmark in ['ModelNet', 'ModelLoNet']:
+        cfg['modelnet'].benchmark = benchmark
+        dataset = get_test_datasets(cfg['modelnet'])
+    else:
+        raise NotImplementedError
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=1,
+        num_workers=num_workers,
+        collate_fn=collate_pair
+    )
+    return dataloader

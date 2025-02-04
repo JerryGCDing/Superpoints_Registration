@@ -4,7 +4,7 @@ from easydict import EasyDict
 
 from cvhelpers.misc import prepare_logger
 
-from data_loaders import get_multi_dataloader
+from data_loaders import get_benchmark_dataset
 from models import get_model
 from trainer_vanilla import Trainer
 from utils.misc import load_config
@@ -46,16 +46,14 @@ cfg = EasyDict(load_config(opt.config))
 
 
 def main():
-    cfg.dataloader.benchmark = opt.benchmark
     if opt.benchmark in ['3DMatch', '3DLoMatch']:
         cfg.dataloader.datasets['3dmatch'].benchmark = opt.benchmark
     elif opt.benchmark in ['ModelNet', 'ModelLoNet']:
         cfg.partial = [0.7, 0.7] if opt.benchmark == 'ModelNet' else [0.5, 0.5]
-        cfg.dataloader.datasets['modelnet'].benchmark = opt.benchmark
     else:
         raise NotImplementedError
 
-    test_loader = get_multi_dataloader(cfg.dataloader, phase='test', num_workers=opt.num_workers)
+    test_loader = get_benchmark_dataset(cfg.dataloader, benchmark=opt.benchmark, num_workers=opt.num_workers)
     Model = get_model(cfg.model)
     model = Model(cfg)
     trainer = Trainer(opt, num_epochs=cfg.num_epochs, grad_clip=cfg.grad_clip)

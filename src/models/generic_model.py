@@ -69,10 +69,10 @@ class GenericModel(torch.nn.Module):
         if isinstance(val_outputs, dict):
             self._generic_summary_function(writer, step, **val_outputs)
 
-    def test_epoch_start(self):
+    def test_epoch_start(self, benchmark):
         pass
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch, batch_idx, benchmark):
         raise NotImplementedError
 
     def test_epoch_end(self, test_step_outputs):

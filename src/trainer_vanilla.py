@@ -24,7 +24,7 @@ class Trainer:
     Generic trainer class
     """
 
-    def __init__(self, opt, num_epochs, grad_clip=0.0, **kwargs):
+    def __init__(self, opt, num_epochs, grad_clip=0.0, benchmark=None, **kwargs):
         self.logger = logging.getLogger(__name__)
         self.opt = opt
         self.train_writer = SummaryWriter(os.path.join(self.opt.log_path, 'train'), flush_secs=10)
@@ -34,6 +34,7 @@ class Trainer:
         self.num_epochs = num_epochs
         self.grad_clip = grad_clip
         self.log_path = self.opt.log_path
+        self.benchmark = benchmark
 
     def fit(self, model: GenericModel, train_loader, val_loader=None, num_gpus=1, local_rank=0):
         # Setup
@@ -232,12 +233,12 @@ class Trainer:
         test_out_all = []
         with torch.no_grad():
 
-            model.test_epoch_start()
+            model.test_epoch_start(self.benchmark)
 
             tbar_test = tqdm(total=len(test_loader), ncols=80, leave=False)
             for test_batch_idx, test_batch in enumerate(test_loader):
                 test_batch = all_to_device(test_batch, model.device)
-                test_out = model.test_step(test_batch, test_batch_idx)
+                test_out = model.test_step(test_batch, test_batch_idx, self.benchmark)
                 test_out_all.append(test_out)
                 tbar_test.update(1)
             tbar_test.close()

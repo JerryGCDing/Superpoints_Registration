@@ -152,29 +152,29 @@ class GenericRegModel(GenericModel, ABC):
         mask = torch.gt(torch.Tensor(IR_list), 0.05)
         return mask.float().sum()/len(IR_list)
 
-    def test_epoch_start(self):
-        if self.cfg.dataloader.benchmark in ['3DMatch', '3DLoMatch']:
+    def test_epoch_start(self, benchmark):
+        if benchmark in ['3DMatch', '3DLoMatch']:
             self.IR_list = []
-        if self.cfg.dataloader.benchmark in ['ModelNet', 'ModelLoNet']:
+        if benchmark in ['ModelNet', 'ModelLoNet']:
             self.modelnet_metrics = []
             self.modelnet_poses = []
 
-        if self.cfg.dataloader.benchmark == 'KITTI':
+        if benchmark == 'KITTI':
             self.kitti_metrics_rot = []
             self.kitti_metrics_trans = []
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch, batch_idx, benchmark):
         pred = self.forward(batch)
         # losses = self.compute_loss(pred, batch)
         losses = 0
         metrics = self._compute_metrics(pred, batch, batch_idx)
 
         # Dataset specific handling
-        if self.cfg.dataloader.benchmark in ['3DMatch', '3DLoMatch']:
+        if benchmark in ['3DMatch', '3DLoMatch']:
             self._save_3DMatch_log(batch, pred)
             # self.IR_list.append(self.compute_IR(pred['src_corr'][0], pred['tgt_corr'][0], batch['pose'][0]))
 
-        elif self.cfg.dataloader.benchmark in ['ModelNet', 'ModelLoNet']:
+        elif benchmark in ['ModelNet', 'ModelLoNet']:
             if self.cfg.model in ["qk_regtr.RegTR", "qk_regtr_old.RegTR", "qk_regtr_modelnet_lowe.RegTR", "qk_regtr_overlap.RegTR", "qk_regtr_full.RegTR"]:
                 modelnet_data = {
                     'points_src': torch.stack(batch['src_xyz']),
@@ -215,7 +215,7 @@ class GenericRegModel(GenericModel, ABC):
                     pred['pose'][-1]
                 )
 
-        elif self.cfg.dataloader.benchmark == 'KITTI':
+        elif benchmark == 'KITTI':
 
             if self.cfg.model=="regtr.RegTR":
                 if metrics['rot_err_deg'][-1] < self.cfg.reg_success_thresh_rot and metrics['trans_err'][-1] < self.cfg.reg_success_thresh_trans:

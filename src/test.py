@@ -47,10 +47,10 @@ cfg = EasyDict(load_config(opt.config))
 
 def main():
     if opt.benchmark in ['3DMatch', '3DLoMatch']:
-        cfg.benchmark = opt.benchmark
+        cfg.dataloader.benchmark = opt.benchmark
     elif opt.benchmark in ['ModelNet', 'ModelLoNet']:
         cfg.partial = [0.7, 0.7] if opt.benchmark == 'ModelNet' else [0.5, 0.5]
-        cfg.benchmark = opt.benchmark
+        cfg.dataloader.benchmark = opt.benchmark
     else:
         raise NotImplementedError
 

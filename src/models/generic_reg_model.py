@@ -256,7 +256,7 @@ class GenericRegModel(GenericModel, ABC):
         log_str += metrics_to_string(avg_metrics, '[Metrics]') + '\n'
         self.logger.info(log_str)
 
-        if self.cfg.benchmark in ['3DMatch', '3DLoMatch']:
+        if self.cfg.dataloader.benchmark in ['3DMatch', '3DLoMatch']:
             # self.logger.info('\n'+"INLIER RATIO OF THE MODEL IS: "+str(torch.Tensor(self.IR_list).mean()))
             # fmr_str = "FEATURE MATCHING RECALL OF THE MODEL IS: "
             # fmr_str += str(self.compute_FMR(self.IR_list))
@@ -274,7 +274,7 @@ class GenericRegModel(GenericModel, ABC):
             self.logger.info('\n' + results_str)
             return mean_precision
 
-        elif self.cfg.benchmark in ['ModelNet', 'ModelLoNet']:
+        elif self.cfg.dataloader.benchmark in ['ModelNet', 'ModelLoNet']:
             metric_keys = self.modelnet_metrics[0].keys()
             metrics_cat = {k: np.concatenate([m[k] for m in self.modelnet_metrics])
                            for k in metric_keys}
@@ -286,7 +286,7 @@ class GenericRegModel(GenericModel, ABC):
             poses_to_save = to_numpy(torch.stack(self.modelnet_poses, dim=0))
             np.save(os.path.join(self._log_path, 'pred_transforms.npy'), poses_to_save)
 
-        elif self.cfg.benchmark == 'KITTI':
+        elif self.cfg.dataloader.benchmark == 'KITTI':
             benchmark_str = "KITTI BENCHMARK RESULTS: \n"
             benchmark_str += "ROTATION ERROR: " + str(torch.Tensor(self.kitti_metrics_rot).mean()) + "TRANSLATION ERROR: " + str(torch.Tensor(self.kitti_metrics_trans).mean())
             self.logger.info('\n' + benchmark_str)

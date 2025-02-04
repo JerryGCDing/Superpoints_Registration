@@ -54,7 +54,7 @@ def main():
     else:
         raise NotImplementedError
 
-    test_loader = get_multi_dataloader(cfg, phase='test', num_workers=opt.num_workers)
+    test_loader = get_multi_dataloader(cfg.dataloader, phase='test', num_workers=opt.num_workers)
     Model = get_model(cfg.model)
     model = Model(cfg)
     trainer = Trainer(opt, num_epochs=cfg.num_epochs, grad_clip=cfg.grad_clip)

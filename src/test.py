@@ -56,7 +56,7 @@ def main():
     test_loader = get_benchmark_dataset(cfg.dataloader, benchmark=opt.benchmark, num_workers=opt.num_workers)
     Model = get_model(cfg.model)
     model = Model(cfg)
-    trainer = Trainer(opt, num_epochs=cfg.num_epochs, grad_clip=cfg.grad_clip)
+    trainer = Trainer(opt, num_epochs=cfg.num_epochs, grad_clip=cfg.grad_clip, benchmark=opt.benchmark)
     trainer.test(model, test_loader)
 
 

@@ -4,7 +4,7 @@ from easydict import EasyDict
 
 from cvhelpers.misc import prepare_logger
 
-from data_loaders import get_dataloader
+from data_loaders import get_multi_dataloader
 from models import get_model
 from trainer_vanilla import Trainer
 from utils.misc import load_config
@@ -54,7 +54,7 @@ def main():
     else:
         raise NotImplementedError
 
-    test_loader = get_dataloader(cfg, phase='test')
+    test_loader = get_multi_dataloader(cfg, phase='test', num_workers=opt.num_workers)
     Model = get_model(cfg.model)
     model = Model(cfg)
     trainer = Trainer(opt, num_epochs=cfg.num_epochs, grad_clip=cfg.grad_clip)

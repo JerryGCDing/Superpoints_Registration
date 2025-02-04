@@ -153,13 +153,13 @@ class GenericRegModel(GenericModel, ABC):
         return mask.float().sum()/len(IR_list)
 
     def test_epoch_start(self):
-        if self.cfg.dataset == '3dmatch':
+        if self.cfg.dataloader.benchmark in ['3DMatch', '3DLoMatch']:
             self.IR_list = []
-        if self.cfg.dataset == 'modelnet':
+        if self.cfg.dataloader.benchmark in ['ModelNet', 'ModelLoNet']:
             self.modelnet_metrics = []
             self.modelnet_poses = []
 
-        if self.cfg.dataset == 'kitti':
+        if self.cfg.dataloader.benchmark == 'KITTI':
             self.kitti_metrics_rot = []
             self.kitti_metrics_trans = []
 
@@ -170,11 +170,11 @@ class GenericRegModel(GenericModel, ABC):
         metrics = self._compute_metrics(pred, batch, batch_idx)
 
         # Dataset specific handling
-        if self.cfg.dataset == '3dmatch':
+        if self.cfg.dataloader.benchmark in ['3DMatch', '3DLoMatch']:
             self._save_3DMatch_log(batch, pred)
             # self.IR_list.append(self.compute_IR(pred['src_corr'][0], pred['tgt_corr'][0], batch['pose'][0]))
 
-        elif self.cfg.dataset == 'modelnet':
+        elif self.cfg.dataloader.benchmark in ['ModelNet', 'ModelLoNet']:
             if self.cfg.model in ["qk_regtr.RegTR", "qk_regtr_old.RegTR", "qk_regtr_modelnet_lowe.RegTR", "qk_regtr_overlap.RegTR", "qk_regtr_full.RegTR"]:
                 modelnet_data = {
                     'points_src': torch.stack(batch['src_xyz']),
@@ -215,7 +215,7 @@ class GenericRegModel(GenericModel, ABC):
                     pred['pose'][-1]
                 )
 
-        elif self.cfg.dataset == 'kitti':
+        elif self.cfg.dataloader.benchmark == 'KITTI':
 
             if self.cfg.model=="regtr.RegTR":
                 if metrics['rot_err_deg'][-1] < self.cfg.reg_success_thresh_rot and metrics['trans_err'][-1] < self.cfg.reg_success_thresh_trans:

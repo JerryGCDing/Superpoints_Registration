@@ -46,6 +46,7 @@ cfg = EasyDict(load_config(opt.config))
 
 
 def main():
+    cfg.dataloader.benchmark = opt.benchmark
     if opt.benchmark in ['3DMatch', '3DLoMatch']:
         cfg.dataloader.datasets['3dmatch'].benchmark = opt.benchmark
     elif opt.benchmark in ['ModelNet', 'ModelLoNet']:

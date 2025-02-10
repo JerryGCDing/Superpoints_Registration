@@ -1,20 +1,46 @@
 general:
     expt_name: qk_regtr_full
 
-dataset:
-    dataset: 3dmatch
-    root: '/home/jerrydty/Datasets/3D3D/indoor'
-    augment_noise: 0.005
-    perturb_pose: small
-    train_batch_size: 2
-    val_batch_size: 2
+dataloader:
+    train_batch_size: 8
+    val_batch_size: 1
     test_batch_size: 1
-    overlap_radius: 0.0375  # Distance below which points will be considered to be overlapping
-    alpha: 0.5
-    beta: 1.5
+    datasets:
+        3dmatch:
+            root: /home/jerrydty/Datasets/3D3D/indoor
+            augment_noise: 0.005
+            perturb_pose: small
+            overlap_radius: 0.0375  # Distance below which points will be considered to be overlapping
+            alpha: 0.5
+            beta: 1.5
+#        kitti:
+#            root: /home/jerrydty/Datasets/3D3D/KITTI_Odometry
+#            validation_seq: "01"
+#            augment_noise: 0.01
+#            perturb_pose: large
+#            downsample: True
+#            alpha: 0.5
+#            beta: 1.5
+#            crop_radius: 0.0
+#            remove_ground: False
+#            first_subsampling_dl: 0.1
+#            overlap_radius: 0.0375
+#        modelnet:
+#            root: /home/jerrydty/Datasets/3D3D/modelnet40_ply_hdf5_2048
+#            train_categoryfile: src/datasets/modelnet/modelnet40_half1.txt
+#            val_categoryfile: src/datasets/modelnet/modelnet40_half1.txt
+#            test_categoryfile: src/datasets/modelnet/modelnet40_half2.txt
+#            augment_noise: 0.005
+#            perturb_pose: small
+#            overlap_radius: 0.0375  # Distance below which points will be considered to be overlapping
+#            partial: [ 0.7, 0.7 ]  # Cropping ratio for training. Will be ignored during benchmarking
+#            num_points: 1024
+#            noise_type: crop
+#            rot_mag: 45.0
+#            trans_mag: 0.5
 
 train_options:
-    niter: -100  # 400 epochs
+    num_epochs: 20
 
 solver:
     optimizer: AdamW

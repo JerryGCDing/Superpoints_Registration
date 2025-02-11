@@ -263,14 +263,14 @@ class GenericRegModel(GenericModel, ABC):
             # self.logger.info('\n' + fmr_str)
 
             # results_str, mean_precision = benchmark_dgr(
-            #     os.path.join(self._log_path, self.cfg.benchmark),
-            #     os.path.join('datasets', '3dmatch', 'benchmarks', self.cfg.benchmark))
+            #     os.path.join(self._log_path, benchmark),
+            #     os.path.join('datasets', '3dmatch', 'benchmarks', benchmark))
             # self.logger.info('\n' + results_str)
 
             # Evaluate 3DMatch registration recall
             results_str, mean_precision = benchmark_predator(
-                os.path.join(self._log_path, self.cfg.benchmark),
-                os.path.join('datasets', '3dmatch', 'benchmarks', self.cfg.benchmark))
+                os.path.join(self._log_path, benchmark),
+                os.path.join('datasets', '3dmatch', 'benchmarks', benchmark))
             self.logger.info('\n' + results_str)
             return mean_precision
 

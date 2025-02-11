@@ -75,7 +75,7 @@ class GenericModel(torch.nn.Module):
     def test_step(self, batch, batch_idx, benchmark):
         raise NotImplementedError
 
-    def test_epoch_end(self, test_step_outputs):
+    def test_epoch_end(self, test_step_outputs, benchmark):
         pass
 
     def configure_optimizers(self):

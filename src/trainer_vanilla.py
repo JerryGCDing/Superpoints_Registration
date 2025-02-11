@@ -243,7 +243,7 @@ class Trainer:
                 tbar_test.update(1)
             tbar_test.close()
 
-            model.test_epoch_end(test_out_all)
+            model.test_epoch_end(test_out_all, self.benchmark)
 
         model.train()
 

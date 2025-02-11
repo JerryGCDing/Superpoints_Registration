@@ -171,7 +171,7 @@ class GenericRegModel(GenericModel, ABC):
 
         # Dataset specific handling
         if benchmark in ['3DMatch', '3DLoMatch']:
-            self._save_3DMatch_log(batch, pred)
+            self._save_3DMatch_log(batch, pred, benchmark)
             # self.IR_list.append(self.compute_IR(pred['src_corr'][0], pred['tgt_corr'][0], batch['pose'][0]))
 
         elif benchmark in ['ModelNet', 'ModelLoNet']:
@@ -381,7 +381,7 @@ class GenericRegModel(GenericModel, ABC):
     """
     Dataset specific functions
     """
-    def _save_3DMatch_log(self, batch, pred):
+    def _save_3DMatch_log(self, batch, pred, benchmark):
         B = len(batch['src_xyz'])
 
         for b in range(B):
@@ -394,7 +394,7 @@ class GenericRegModel(GenericModel, ABC):
             if pred_pose_np.shape[0] == 3:
                 pred_pose_np = np.concatenate([pred_pose_np, [[0., 0., 0., 1.]]], axis=0)
 
-            scene_folder = os.path.join(self._log_path, self.cfg.benchmark, scene)
+            scene_folder = os.path.join(self._log_path, benchmark, scene)
             os.makedirs(scene_folder, exist_ok=True)
             est_log_path = os.path.join(scene_folder, 'est.log')
             with open(est_log_path, 'a') as fid:

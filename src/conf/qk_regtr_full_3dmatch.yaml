@@ -102,7 +102,7 @@ kpconv_options:
 lgr:
     use_lgr: False
     num_refinement_steps: 4
-    acceptance_radius: 0.1
+    acceptance_radius: 0.05
 
 ransac:
     use_ransac: False

@@ -149,7 +149,7 @@ class GenericRegModel(GenericModel, ABC):
 
     def compute_FMR(self, IR_list):
         # print(IR_list)
-        mask = torch.gt(torch.Tensor(IR_list), 0.05)
+        mask = torch.gt(torch.Tensor(IR_list), 0.1)
         return mask.float().sum()/len(IR_list)
 
     def test_epoch_start(self, benchmark):

@@ -17,6 +17,8 @@ from utils.comm import *
 import os
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64"
+INLIER_RATIO_THRESHOLD = 0.1
+RMSE_THRESHOLD = 0.1
 
 
 class Trainer:
@@ -230,7 +232,9 @@ class Trainer:
 
         # Run validation and exit if validate_every = 0
         model.eval()
-        test_out_all = []
+        inlier_ratio = []
+        feature_matching_ratio = []
+        registration_recall = []
         with torch.no_grad():
 
             model.test_epoch_start(self.benchmark)
@@ -238,12 +242,18 @@ class Trainer:
             tbar_test = tqdm(total=len(test_loader), ncols=80, leave=False)
             for test_batch_idx, test_batch in enumerate(test_loader):
                 test_batch = all_to_device(test_batch, model.device)
-                test_out = model.test_step(test_batch, test_batch_idx, self.benchmark)
-                test_out_all.append(test_out)
+                metrics = model.test_step(test_batch, test_batch_idx, self.benchmark)
+                inlier_ratio.append(metrics['inlier_ratio'])
+                feature_matching_ratio.append(float(metrics['inlier_ratio'] >= INLIER_RATIO_THRESHOLD))
+                registration_recall.append(float(metrics['rmse'] < RMSE_THRESHOLD))
                 tbar_test.update(1)
             tbar_test.close()
 
-            model.test_epoch_end(test_out_all, self.benchmark)
+            # model.test_epoch_end(metrics_all, self.benchmark)
+        inlier_ratio = torch.tensor(inlier_ratio).mean() * 100
+        feature_matching_ratio = torch.tensor(feature_matching_ratio).mean() * 100
+        registration_recall = torch.tensor(registration_recall).mean() * 100
+        self.logger.info(f'Test results - IR: {inlier_ratio}; FMR: {feature_matching_ratio}; RR: {registration_recall}')
 
         model.train()
 

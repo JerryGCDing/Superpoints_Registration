@@ -34,6 +34,14 @@ def get_angle_deviation(R_pred,R_gt):
     return degs
 
 
+def registration_rmse(src_points, gt_transform, est_transform):
+    gt_points = se3_transform(gt_transform, src_points)
+    est_points = se3_transform(est_transform, src_points)
+    rmse = torch.sqrt(torch.sum((gt_points - est_points) ** 2, dim=1).mean())
+    # rmse = np.linalg.norm(gt_points - est_points, axis=1).mean()
+    return rmse
+
+
 class GenericRegModel(GenericModel, ABC):
 
     def __init__(self, cfg, *args, **kwargs):
@@ -147,10 +155,10 @@ class GenericRegModel(GenericModel, ABC):
 
         return inlier_masks.float().sum()/src_points.shape[0]
 
-    def compute_FMR(self, IR_list):
-        # print(IR_list)
-        mask = torch.gt(torch.Tensor(IR_list), 0.1)
-        return mask.float().sum()/len(IR_list)
+    # def compute_FMR(self, IR_list):
+    #     # print(IR_list)
+    #     mask = torch.gt(torch.Tensor(IR_list), 0.1)
+    #     return mask.float().sum()/len(IR_list)
 
     def test_epoch_start(self, benchmark):
         if benchmark in ['3DMatch', '3DLoMatch']:
@@ -166,13 +174,16 @@ class GenericRegModel(GenericModel, ABC):
     def test_step(self, batch, batch_idx, benchmark):
         pred = self.forward(batch)
         # losses = self.compute_loss(pred, batch)
-        losses = 0
         metrics = self._compute_metrics(pred, batch, batch_idx)
 
         # Dataset specific handling
         if benchmark in ['3DMatch', '3DLoMatch']:
-            self._save_3DMatch_log(batch, pred, benchmark)
-            # self.IR_list.append(self.compute_IR(pred['src_corr'][0], pred['tgt_corr'][0], batch['pose'][0]))
+            # self._save_3DMatch_log(batch, pred, benchmark)
+            inlier_ratio = self.compute_IR(pred['src_corr'][0], pred['tgt_corr'][0], batch['pose'][0])
+            # inlier_ratio = self.compute_IR(batch['src_xyz'][0], batch['tgt_xyz'][0], pred['pose'][0])
+            rmse = registration_rmse(batch['src_xyz'][0], batch['pose'][0], pred['pose'][0])
+            metrics['inlier_ratio'] = inlier_ratio
+            metrics['rmse'] = rmse
 
         elif benchmark in ['ModelNet', 'ModelLoNet']:
             if self.cfg.model in ["qk_regtr.RegTR", "qk_regtr_old.RegTR", "qk_regtr_modelnet_lowe.RegTR", "qk_regtr_overlap.RegTR", "qk_regtr_full.RegTR"]:
@@ -236,14 +247,9 @@ class GenericRegModel(GenericModel, ABC):
         else:
             raise NotImplementedError
 
-        test_outputs = (losses, metrics)
-        return test_outputs
+        return metrics
 
-    def test_epoch_end(self, test_step_outputs, benchmark):
-
-        # losses = [v[0] for v in test_step_outputs]
-        metrics = [v[1] for v in test_step_outputs]
-
+    def test_epoch_end(self, metrics, benchmark):
         # loss_keys = losses[0].keys()
         # losses = {k: torch.stack([l[k] for l in losses]) for k in loss_keys}
 

@@ -395,7 +395,7 @@ class RegTR(GenericRegModel):
     
     def ransac(self, src, tgt, weights):
         N = src.size(0)
-        itr = 500
+        itr = 1000
         sample_size = 100
         for i in range(itr):
             idx = torch.randint(0, N, (sample_size,)).cuda()

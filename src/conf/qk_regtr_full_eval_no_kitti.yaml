@@ -100,7 +100,7 @@ lgr:
     acceptance_radius: 0.1
 
 ransac:
-    use_ransac: True
+    use_ransac: False
 
 model:
     model: qk_regtr_full.RegTR
@@ -122,7 +122,7 @@ model:
     lowe_thres: 0.9
 
     # Sinkhorn
-    use_sinkhorn: False
+    use_sinkhorn: True
     sinkhorn_itr: 3
     slack: True
     use_attn_affinity: False

@@ -148,12 +148,19 @@ class GenericRegModel(GenericModel, ABC):
             if k.endswith('hist'):
                 writer.add_histogram(f'metrics/{k}', metrics[k], step)
 
-    def compute_IR(self, src_points, tgt_points, pose):
-        src_points_tf = se3_transform(pose, src_points)
-        residuals = torch.linalg.norm(tgt_points - src_points_tf, dim=1)
-        inlier_masks = torch.lt(residuals, self.cfg.acceptance_radius)
+    # def compute_IR(self, src_points, tgt_points, pose):
+    #     src_points_tf = se3_transform(pose, src_points)
+    #     residuals = torch.linalg.norm(tgt_points - src_points_tf, dim=1)
+    #     inlier_masks = torch.lt(residuals, self.cfg.acceptance_radius)
+    #
+    #     return inlier_masks.float().sum()/src_points.shape[0]
 
-        return inlier_masks.float().sum()/src_points.shape[0]
+    def compute_IR(self, src_pcd, pred_pose, gt_pose):
+        src_pcd_gt = se3_transform(gt_pose, src_pcd)
+        src_pcd_pred = se3_transform(pred_pose, src_pcd)
+        residuals = torch.linalg.norm(src_pcd_pred - src_pcd_gt, dim=1)
+        inlier_masks = torch.lt(residuals, self.cfg.acceptance_radius)
+        return inlier_masks.float().mean()
 
     # def compute_FMR(self, IR_list):
     #     # print(IR_list)
@@ -179,8 +186,8 @@ class GenericRegModel(GenericModel, ABC):
         # Dataset specific handling
         if benchmark in ['3DMatch', '3DLoMatch']:
             # self._save_3DMatch_log(batch, pred, benchmark)
-            inlier_ratio = self.compute_IR(pred['src_corr'][0], pred['tgt_corr'][0], batch['pose'][0])
-            # inlier_ratio = self.compute_IR(batch['src_xyz'][0], batch['tgt_xyz'][0], pred['pose'][0])
+            # inlier_ratio = self.compute_IR(pred['src_corr'][0], pred['tgt_corr'][0], batch['pose'][0])
+            inlier_ratio = self.compute_IR(batch['src_xyz'][0], pred['pose'][0], batch['pose'][0])
             rmse = registration_rmse(batch['src_xyz'][0], batch['pose'][0], pred['pose'][0])
             metrics['inlier_ratio'] = inlier_ratio
             metrics['rmse'] = rmse

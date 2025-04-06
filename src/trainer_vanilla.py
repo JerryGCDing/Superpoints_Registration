@@ -235,6 +235,8 @@ class Trainer:
         inlier_ratio = []
         feature_matching_ratio = []
         registration_recall = []
+        relative_rot_error = []
+        relative_trans_error = []
         with torch.no_grad():
 
             model.test_epoch_start(self.benchmark)
@@ -246,6 +248,8 @@ class Trainer:
                 inlier_ratio.append(metrics['inlier_ratio'])
                 feature_matching_ratio.append(float(metrics['inlier_ratio'] >= INLIER_RATIO_THRESHOLD))
                 registration_recall.append(float(metrics['rmse'] < RMSE_THRESHOLD))
+                relative_rot_error.append(metrics['rot_err_deg'])
+                relative_trans_error.append(metrics['trans_err'])
                 tbar_test.update(1)
             tbar_test.close()
 
@@ -253,7 +257,10 @@ class Trainer:
         inlier_ratio = torch.tensor(inlier_ratio).mean() * 100
         feature_matching_ratio = torch.tensor(feature_matching_ratio).mean() * 100
         registration_recall = torch.tensor(registration_recall).mean() * 100
-        self.logger.info(f'Test results - IR: {inlier_ratio}; FMR: {feature_matching_ratio}; RR: {registration_recall}')
+        relative_rot_error = torch.tensor(relative_rot_error).mean()
+        relative_trans_error = torch.tensor(relative_trans_error).mean()
+        self.logger.info(
+            f'Test results - IR: {inlier_ratio}; FMR: {feature_matching_ratio}; RR: {registration_recall}; RRE: {relative_rot_error}; RTE: {relative_trans_error}')
 
         model.train()
 
